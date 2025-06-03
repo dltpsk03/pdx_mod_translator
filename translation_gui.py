@@ -825,7 +825,7 @@ Text to translate:
         if not self.input_folder_var.get() or not os.path.isdir(self.input_folder_var.get()): messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_input_folder_invalid")); return False
         if not self.output_folder_var.get(): messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_output_folder_needed")); return False
         if not is_valid_int(self.batch_size_var, 1, 500): messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('batch_size_label')[:-1]})"); return False
-        if not is_valid_int(self.max_workers_var, 1, os.cpu_count() or 256): messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('concurrent_files_label')[:-1]})"); return False
+        if not is_valid_int(self.max_workers_var, 1, 256): messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('concurrent_files_label')[:-1]})"); return False
         if not is_valid_int(self.max_tokens_var, 100, 65536): messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('max_output_tokens_label')[:-1]})"); return False
         if not is_valid_float(self.delay_between_batches_var, 0.0, 60.0): messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('batch_delay_label')[:-1]})"); return False
         current_prompt = self.prompt_textbox.get("1.0", "end-1c")
