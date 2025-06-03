@@ -791,7 +791,13 @@ Text to translate:
                 total_valid_entries += current_file_entries; glossary_item_info["entry_count"] = current_file_entries
                 glossary_item_info["status_var"].set(self.texts.get("glossary_item_loaded").format(base_name, current_file_entries))
             except Exception as e: glossary_item_info["status_var"].set(self.texts.get("glossary_item_error").format(base_name)); glossary_item_info["entry_count"] = 0; self.log_message("log_glossary_error", base_name, str(e))
-        if not combined_glossary_for_prompt: self.log_message("log_combined_glossary_empty"); return ""
+        
+        # UI 업데이트 (용어집 항목 수 등) - 이 함수 호출 후 _update_glossary_list_ui를 다시 호출할 수도 있음
+        # self.after(0, self._update_glossary_list_ui) # 필요하다면, 하지만 현재는 상태 텍스트만 사용
+
+        if not combined_glossary_for_prompt:
+            # self.log_message("log_combined_glossary_empty") # <<< 이 로그 메시지 제거 또는 주석 처리
+            return ""
         self.log_message("log_combined_glossary_info", total_valid_entries)
         header = "Please refer to the following glossary for translation. Ensure these terms are translated as specified:\n"
         return header + "\n".join(combined_glossary_for_prompt) + "\n\n"
@@ -841,52 +847,97 @@ Text to translate:
     def translate_batch(self, text_batch, model, temperature=0.2, max_output_tokens=8192):
         batch_text_content = "\n".join([line.rstrip('\n') for line in text_batch])
         source_lang_for_prompt = self.source_lang_for_api_var.get(); target_lang_for_prompt = self.target_lang_for_api_var.get()
-        prompt_template_str = self.prompt_textbox.get("1.0", "end-1c"); glossary_str_for_prompt = self._get_combined_glossary_content() 
+        prompt_template_str = self.prompt_textbox.get("1.0", "end-1c"); glossary_str_for_prompt = self._get_combined_glossary_content()
         try: final_prompt = prompt_template_str.format(source_lang_for_prompt=source_lang_for_prompt, target_lang_for_prompt=target_lang_for_prompt, glossary_section=glossary_str_for_prompt, batch_text=batch_text_content)
         except KeyError as e: self.log_message("log_batch_unknown_error", self.current_processing_file_for_log, f"Prompt formatting error (KeyError: {e}). Using default structure."); final_prompt = self.default_prompt_template_str.format(source_lang_for_prompt=source_lang_for_prompt, target_lang_for_prompt=target_lang_for_prompt, glossary_section=glossary_str_for_prompt, batch_text=batch_text_content)
         try:
-            if self.stop_event.is_set(): return [line if line.endswith('\n') else line + '\n' for line in text_batch]
+            if self.stop_event.is_set(): return [line if line.endswith('\n') else line + '\n' for line in text_batch] # 중지 시 원본 반환
             response = model.generate_content(final_prompt, generation_config=genai.types.GenerationConfig(temperature=temperature, max_output_tokens=max_output_tokens))
-            translated_text = ""; finish_reason_val = 0 
-            if response.candidates: candidate = response.candidates[0]; 
+            translated_text = ""; finish_reason_val = 0
+            if response.candidates: candidate = response.candidates[0];
             if candidate.content and candidate.content.parts: translated_text = "".join(part.text for part in candidate.content.parts if hasattr(part, 'text'))
             if hasattr(candidate, 'finish_reason'): finish_reason_val = candidate.finish_reason
             elif hasattr(response, 'text') and response.text: translated_text = response.text
-            if response.prompt_feedback and response.prompt_feedback.block_reason: self.log_message("log_batch_prompt_blocked", self.current_processing_file_for_log, response.prompt_feedback.block_reason); return [line if line.endswith('\n') else line + '\n' for line in text_batch]
-            if finish_reason_val not in [0, 1]:
-                if finish_reason_val == 2: 
+
+            if response.prompt_feedback and response.prompt_feedback.block_reason:
+                self.log_message("log_batch_prompt_blocked", self.current_processing_file_for_log, response.prompt_feedback.block_reason)
+                return [line if line.endswith('\n') else line + '\n' for line in text_batch] # 프롬프트 차단 시 원본 반환
+
+            if finish_reason_val not in [0, 1]: # 0: unspecified, 1: STOP (성공)
+                if finish_reason_val == 2: # MAX_TOKENS
                     self.log_message("log_batch_token_limit", self.current_processing_file_for_log, finish_reason_val)
-                    if len(text_batch) > 1: mid = len(text_batch) // 2; first_half = self.translate_batch(text_batch[:mid], model, temperature, max_output_tokens); second_half = self.translate_batch(text_batch[mid:], model, temperature, max_output_tokens); return first_half + second_half
-                    else: self.log_message("log_batch_single_line_token_limit", self.current_processing_file_for_log); return [line if line.endswith('\n') else line + '\n' for line in text_batch]
-                else: 
+                    if len(text_batch) > 1:
+                        mid = len(text_batch) // 2
+                        first_half = self.translate_batch(text_batch[:mid], model, temperature, max_output_tokens)
+                        second_half = self.translate_batch(text_batch[mid:], model, temperature, max_output_tokens)
+                        return first_half + second_half
+                    else:
+                        self.log_message("log_batch_single_line_token_limit", self.current_processing_file_for_log)
+                        return [line if line.endswith('\n') else line + '\n' for line in text_batch] # 단일 라인 토큰 초과 시 원본 반환
+                else: # SAFETY, RECITATION, OTHER
                     reason_str = f"Reason Code: {finish_reason_val}"
-                    if response.candidates and response.candidates[0].safety_ratings: safety_str = "; ".join([f"{sr.category.name}: {sr.probability.name}" for sr in response.candidates[0].safety_ratings]); reason_str += f" (Safety: {safety_str})"
-                    self.log_message("log_batch_abnormal_termination", self.current_processing_file_for_log, reason_str); return [line if line.endswith('\n') else line + '\n' for line in text_batch]
-            if not translated_text.strip(): self.log_message("log_batch_empty_response", self.current_processing_file_for_log); return [line if line.endswith('\n') else line + '\n' for line in text_batch]
+                    if response.candidates and response.candidates[0].safety_ratings:
+                        safety_str = "; ".join([f"{sr.category.name}: {sr.probability.name}" for sr in response.candidates[0].safety_ratings])
+                        reason_str += f" (Safety: {safety_str})"
+                    self.log_message("log_batch_abnormal_termination", self.current_processing_file_for_log, reason_str)
+                    return [line if line.endswith('\n') else line + '\n' for line in text_batch] # 비정상 종료 시 원본 반환
+
+            if not translated_text.strip():
+                self.log_message("log_batch_empty_response", self.current_processing_file_for_log)
+                return [line if line.endswith('\n') else line + '\n' for line in text_batch] # 빈 응답 시 원본 반환
+
+            # ```yaml 과 ``` 제거 (이전과 동일)
             if translated_text.startswith("```yaml\n"): translated_text = translated_text[len("```yaml\n"):]
             if translated_text.endswith("\n```"): translated_text = translated_text[:-len("\n```")]
             if translated_text.startswith("```\n"): translated_text = translated_text[len("```\n"):]
             if translated_text.endswith("```"): translated_text = translated_text[:-len("```")]
-            translated_lines_raw = translated_text.split('\n'); processed_lines = []
+
+            translated_lines_raw = translated_text.split('\n')
+            processed_lines = []
+
+            # log_batch_line_mismatch 관련 if문 및 log_message 호출 완전 제거됨
+
+            # 번역된 라인 수만큼만 반복하여 처리
             for i in range(len(translated_lines_raw)):
                 api_translated_line = translated_lines_raw[i]
-                if i < len(text_batch): 
-                    original_line_content = text_batch[i]; original_ends_with_newline = original_line_content.endswith('\n')
-                    if original_ends_with_newline and not api_translated_line.endswith('\n'): processed_lines.append(api_translated_line + '\n')
-                    else: processed_lines.append(api_translated_line)
-                else: processed_lines.append(api_translated_line) 
-            if len(processed_lines) < len(text_batch):
-                self.log_message("log_batch_line_mismatch", self.current_processing_file_for_log)
-                for k in range(len(processed_lines), len(text_batch)): original_line = text_batch[k]; processed_lines.append(original_line if original_line.endswith('\n') else original_line + '\n')
+
+                # 원본 라인이 존재하는 경우에만 원본의 개행 상태를 참고
+                if i < len(text_batch):
+                    original_line_content = text_batch[i]
+                    original_ends_with_newline = original_line_content.endswith('\n')
+
+                    if original_ends_with_newline and not api_translated_line.endswith('\n'):
+                        processed_lines.append(api_translated_line + '\n')
+                    elif not original_ends_with_newline and api_translated_line.endswith('\n'):
+                        processed_lines.append(api_translated_line.rstrip('\n'))
+                    else:
+                        processed_lines.append(api_translated_line if api_translated_line.endswith('\n') else api_translated_line + '\n')
+                else:
+                    # 번역된 라인이 원본보다 많을 경우 (프롬프트 규칙상 거의 발생 안함)
+                    # 일단 번역된 그대로 추가 (개행은 API가 준 대로, 없으면 추가)
+                    processed_lines.append(api_translated_line if api_translated_line.endswith('\n') else api_translated_line + '\n')
+
             return processed_lines
+
         except Exception as e:
-            if self.stop_event.is_set(): return [line if line.endswith('\n') else line + '\n' for line in text_batch]
+            if self.stop_event.is_set(): return [line if line.endswith('\n') else line + '\n' for line in text_batch] # 중지 시 원본 반환
             error_str = str(e).lower()
-            if ("token" in error_str and ("limit" in error_str or "exceeded" in error_str or "max" in error_str)) or ("429" in error_str) or ("resource has been exhausted" in error_str) or ("quota" in error_str) or ("rate limit" in error_str) or ("rpm" in error_str and "limit" in error_str):
+            # API 제한 관련 오류 처리 (이전과 동일)
+            if ("token" in error_str and ("limit" in error_str or "exceeded" in error_str or "max" in error_str)) or \
+               ("429" in error_str) or ("resource has been exhausted" in error_str) or \
+               ("quota" in error_str) or ("rate limit" in error_str) or ("rpm" in error_str and "limit" in error_str) or \
+               ("user_location" in error_str and "blocked" in error_str) or ("permission_denied" in error_str):
                 self.log_message("log_batch_api_limit_error_split", self.current_processing_file_for_log, str(e))
-                if len(text_batch) > 1: mid = len(text_batch) // 2; first_half = self.translate_batch(text_batch[:mid], model, temperature, max_output_tokens); second_half = self.translate_batch(text_batch[mid:], model, temperature, max_output_tokens); return first_half + second_half
-                else: self.log_message("log_batch_single_line_api_limit", self.current_processing_file_for_log); return [line if line.endswith('\n') else line + '\n' for line in text_batch]
-            self.log_message("log_batch_unknown_error", self.current_processing_file_for_log, str(e)); return [line if line.endswith('\n') else line + '\n' for line in text_batch]
+                if len(text_batch) > 1:
+                    mid = len(text_batch) // 2
+                    first_half = self.translate_batch(text_batch[:mid], model, temperature, max_output_tokens)
+                    second_half = self.translate_batch(text_batch[mid:], model, temperature, max_output_tokens)
+                    return first_half + second_half
+                else:
+                    self.log_message("log_batch_single_line_api_limit", self.current_processing_file_for_log)
+                    return [line if line.endswith('\n') else line + '\n' for line in text_batch] # 단일 라인 API 제한 시 원본 반환
+            self.log_message("log_batch_unknown_error", self.current_processing_file_for_log, str(e))
+            return [line if line.endswith('\n') else line + '\n' for line in text_batch] # 알 수 없는 오류 시 원본 반환
 
     def process_file(self, input_file, output_file, model):
         self.current_processing_file_for_log = os.path.basename(input_file)
