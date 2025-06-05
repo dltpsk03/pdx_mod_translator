@@ -76,6 +76,13 @@ class TranslatorEngine:
             return match.group(1)
         return None
 
+    def _extract_yml_key(self, line_content):
+        """YML 라인에서 키(id) 부분 추출"""
+        line_no_comment = line_content.split('#', 1)[0]
+        if ':' in line_no_comment:
+            return line_no_comment.split(':', 1)[0].strip()
+        return None
+
 
     def _check_regex_errors_optimized(self, value_text):
         """정규식 오류 검사 - 수정된 버전"""
@@ -127,10 +134,10 @@ class TranslatorEngine:
         if re.fullmatch(r'(true|false|null|\d+|\d*\.\d+)', value_part.lower()):
             return False
 
-        pat_unclosed = self.compiled_regex_valid_yml_value or re.compile(self.regex_valid_yml_value_str)
         pat_leading = self.compiled_regex_improper_leading_quote or re.compile(self.regex_error_improper_leading_quote_str)
 
-        if pat_unclosed.match(line_without_comment):
+        # 따옴표 개수 불균형 확인
+        if value_part.count('"') % 2 != 0:
             return True
 
         if pat_leading.search(value_part):
@@ -749,8 +756,14 @@ class TranslatorEngine:
                     with codecs.open(original_filepath, 'r', encoding='utf-8-sig') as f_org:
                         original_lines = f_org.readlines()
                 except Exception as e_org:
-                     self.log_callback("log_file_process_error", os.path.basename(original_filepath), 
+                     self.log_callback("log_file_process_error", os.path.basename(original_filepath),
                                      f" (Original file read error for validation: {e_org})")
+
+            original_lines_dict = {}
+            for ol in original_lines:
+                key = self._extract_yml_key(ol)
+                if key is not None and key not in original_lines_dict:
+                    original_lines_dict[key] = ol
 
             # 번역 파일 읽기 및 검사
             try:
@@ -765,8 +778,17 @@ class TranslatorEngine:
                 continue
 
             for line_num, translated_line_content in enumerate(translated_lines):
-                if self.stop_event.is_set(): break
-                current_original_line_stripped = original_lines[line_num].strip() if line_num < len(original_lines) else ""
+                if self.stop_event.is_set():
+                    break
+
+                trans_key = self._extract_yml_key(translated_line_content)
+                matched_original_line = None
+                if trans_key and trans_key in original_lines_dict:
+                    matched_original_line = original_lines_dict[trans_key]
+                elif line_num < len(original_lines):
+                    matched_original_line = original_lines[line_num]
+                current_original_line_stripped = matched_original_line.strip() if matched_original_line else ""
+
                 translated_value = self._extract_yml_value(translated_line_content)
 
                 if check_regex:
@@ -780,10 +802,12 @@ class TranslatorEngine:
                         })
                         continue  # 한 라인에 여러 오류 중 하나만 보고
 
-                if check_source_lang and translated_value is not None:
-                    if self._check_source_remnants_optimized(translated_value, original_lines, line_num):
+                if check_source_lang and translated_value is not None and matched_original_line:
+                    orig_val = self._extract_yml_value(matched_original_line)
+                    if orig_val is not None and orig_val.strip() == translated_value.strip():
                         found_issues_details.append({
-                            "file": os.path.basename(translated_filepath), "line_num": line_num + 1,
+                            "file": os.path.basename(translated_filepath),
+                            "line_num": line_num + 1,
                             "type_key": "validation_error_source_lang_remaining",
                             "original": current_original_line_stripped,
                             "translated": translated_line_content.strip()
