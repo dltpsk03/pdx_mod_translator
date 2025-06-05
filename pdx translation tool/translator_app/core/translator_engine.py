@@ -509,6 +509,7 @@ class TranslatorEngine:
                     fut = executor.submit(translate_chunk, i, chunk_lines)
                     future_to_index[fut] = i
 
+                completed_chunks = 0
                 for fut in concurrent.futures.as_completed(future_to_index):
                     if self.stop_event.is_set():
                         break
@@ -517,6 +518,8 @@ class TranslatorEngine:
                         idx = future_to_index[fut]
                         translated_chunk_content_files.append((idx, result_file))
                         self.log_callback("log_chunk_completed", idx + 1, num_chunks)
+                        completed_chunks += 1
+                        self.main_status_callback("status_chunk_progress", completed_chunks, num_chunks, task_type="translation")
 
             if not self.stop_event.is_set() and len(translated_chunk_content_files) == num_chunks:
                 self.log_callback("log_merging_chunks", final_output_file_path)
