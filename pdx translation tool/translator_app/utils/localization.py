@@ -57,6 +57,7 @@ LANGUAGES = {
         "status_completed_some": "일부 파일 처리 완료 ({0}/{1})", "status_no_files": "처리할 YML 파일을 찾지 못했습니다.",
         "log_frame": "실행 로그", "error_title": "오류", "warn_title": "경고", "info_title": "정보",
         "settings_saved_log": "설정이 저장되었습니다.",
+        "refresh_button_tooltip": "UI 새로고침",
         "error_api_key_needed": "Gemini API 키를 입력해야 합니다.", "error_model_needed": "번역 모델을 선택해야 합니다.",
         "error_input_folder_invalid": "올바른 입력 폴더를 선택해야 합니다.", "error_output_folder_needed": "출력 폴더를 선택해야 합니다.",
         "error_numeric_setting_invalid": "숫자 설정값이 올바르지 않습니다. 유효한 숫자를 입력해주세요.",
@@ -84,6 +85,7 @@ LANGUAGES = {
         "log_batch_api_limit_error_split": "파일 '{0}', 배치 처리: API 요청 제한 관련 오류 발생 ({1}). 배치를 나눠 다시 시도합니다.", "log_batch_single_line_api_limit": "파일 '{0}', 배치 처리: 한 줄의 내용도 API 요청 제한 오류가 발생했습니다. 원본 내용을 반환합니다.",
         "log_batch_unknown_error": "파일 '{0}', 배치 처리 중 알 수 없는 오류 발생: {1}", "log_batch_retrying": "파일 '{0}', 오류 발생으로 배치를 한번 더 시도합니다. ({1})", "log_file_process_stopped": "파일 '{0}' 처리 중 작업이 중지되었습니다.",
         "log_file_completed": "파일 처리 완료: {0}", "status_translating_progress": "번역 진행 중... ({0}/{1})",
+        "status_chunk_progress": "청크 진행 중... ({0}/{1})",
         "log_no_yml_files_found_short": "파일 없음", "log_search_yml_files_short": "파일 검색 중...",
         "status_stopped_short": "중지됨", "status_completed_some_short": "일부 완료", "status_completed_all_short": "모두 완료",
         "log_internal_lang_mismatch_using_ui": "파일 '{0}'의 첫 줄 식별자 '{1}'(은)는 UI에서 설정한 원본 언어 '{2}'와 다릅니다. UI 설정을 사용하여 번역합니다.",
@@ -243,6 +245,7 @@ LANGUAGES = {
         "status_completed_some": "Some files processed ({0}/{1})", "status_no_files": "No YML files found to process.",
         "log_frame": "Execution Log", "error_title": "Error", "warn_title": "Warning", "info_title": "Information",
         "settings_saved_log": "Settings have been saved.",
+        "refresh_button_tooltip": "Refresh UI",
         "error_api_key_needed": "Gemini API key is required.", "error_model_needed": "A translation model must be selected.",
         "error_input_folder_invalid": "A valid input folder must be selected.", "error_output_folder_needed": "An output folder must be selected.",
         "error_numeric_setting_invalid": "Numeric setting is invalid. Please enter a valid number.",
@@ -270,6 +273,7 @@ LANGUAGES = {
         "log_batch_api_limit_error_split": "File '{0}', batch processing: API request limit error ({1}). Splitting batch and retrying.", "log_batch_single_line_api_limit": "File '{0}', batch processing: Single line content caused API request limit error. Returning original content.",
         "log_batch_unknown_error": "File '{0}', unknown error during batch processing: {1}", "log_batch_retrying": "File '{0}', error occurred. Retrying batch once. ({1})", "log_file_process_stopped": "Processing stopped for file '{0}'.",
         "log_file_completed": "File processing completed: {0}", "status_translating_progress": "Translating... ({0}/{1})",
+        "status_chunk_progress": "Chunk progress... ({0}/{1})",
         "log_no_yml_files_found_short": "No files", "log_search_yml_files_short": "Searching files...",
         "status_stopped_short": "Stopped", "status_completed_some_short": "Partial", "status_completed_all_short": "All Done",
         "log_internal_lang_mismatch_using_ui": "The first line identifier '{1}' in file '{0}' differs from the source language '{2}' set in the UI. Translating using UI setting.",
@@ -446,6 +450,7 @@ LANGUAGES = {
         "status_completed_some": "部分文件处理完成 ({0}/{1})", "status_no_files": "未找到要处理的 YML 文件。", # 수정됨
         "log_frame": "运行日志", "error_title": "错误", "warn_title": "警告", "info_title": "信息", # 이전과 동일
         "settings_saved_log": "设置已保存。", # 신규
+        "refresh_button_tooltip": "刷新界面",
         "error_api_key_needed": "需要输入 Gemini API 密钥。", "error_model_needed": "必须选择翻译模型。", # 이전과 동일
         "error_input_folder_invalid": "必须选择一个有效的输入文件夹。", "error_output_folder_needed": "必须选择输出文件夹。", # 이전과 동일
         "error_numeric_setting_invalid": "数字设置无效。请输入一个有效的数字。", # 이전과 동일
@@ -473,6 +478,7 @@ LANGUAGES = {
         "log_batch_api_limit_error_split": "文件 '{0}', 批处理：发生 API 请求限制相关错误 ({1})。将拆分批次并重试。", "log_batch_single_line_api_limit": "文件 '{0}', 批处理：单行内容也发生 API 请求限制错误。返回原始内容。", # 이전과 동일
         "log_batch_unknown_error": "文件 '{0}', 批处理过程中发生未知错误: {1}", "log_batch_retrying": "文件 '{0}' 发生错误，正在重试该批次。 ({1})", "log_file_process_stopped": "处理文件 '{0}' 时任务已停止。", # 수정됨
         "log_file_completed": "文件处理完成: {0}", "status_translating_progress": "翻译进行中... ({0}/{1})", # 수정됨
+        "status_chunk_progress": "分块进度... ({0}/{1})",
         "log_no_yml_files_found_short": "无文件", "log_search_yml_files_short": "正在搜索文件...", # 이전과 동일
         "status_stopped_short": "已停止", "status_completed_some_short": "部分完成", "status_completed_all_short": "全部完成", # 수정됨
         "log_internal_lang_mismatch_using_ui": "文件 '{0}' 中的首行标识符 '{1}' 与 UI 中设置的源语言 '{2}' 不同。将使用 UI 设置进行翻译。",

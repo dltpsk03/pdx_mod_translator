@@ -125,6 +125,11 @@ Text to translate:
             self.validation_window_instance.destroy()
         self.destroy()
 
+    def refresh_ui(self):
+        """UI 텍스트와 상태를 새로고침"""
+        self.update_ui_texts()
+        self._update_status_ui("status_waiting", task_type="system")
+
     def load_settings(self):
         app_vars_for_settings = {
             "ui_lang_var": self.current_lang_code,
@@ -191,6 +196,18 @@ Text to translate:
         top_main_frame.grid_columnconfigure(0, weight=5)
         top_main_frame.grid_columnconfigure(1, weight=3)
         top_main_frame.grid_rowconfigure(0, weight=1)
+
+        # 상단 우측 리프레시 버튼
+        self.refresh_button = ctk.CTkButton(
+            top_main_frame,
+            text="🔄",
+            width=28,
+            height=28,
+            command=self.refresh_ui,
+            font=ctk.CTkFont(size=14)
+        )
+        self.refresh_button.place(relx=1.0, y=2, anchor="ne")
+        self.refresh_button_tooltip = Tooltip(self.refresh_button, "")
 
         # 좌측: 설정 패널들
         self.settings_scroll_frame = ctk.CTkScrollableFrame(top_main_frame, corner_radius=12)
@@ -325,6 +342,8 @@ Text to translate:
         if hasattr(self, 'prompt_glossary_panel'): self.prompt_glossary_panel.update_language()
         if hasattr(self, 'control_panel'): self.control_panel.update_language()
         if hasattr(self, 'log_panel'): self.log_panel.update_language()
+        if hasattr(self, 'refresh_button_tooltip'):
+            self.refresh_button_tooltip.update_text(self.texts.get("refresh_button_tooltip", "Refresh"))
 
         if hasattr(self, 'comparison_review_tool_title_label'): 
             self.comparison_review_tool_title_label.configure(text=self.texts.get("review_section_title", "File Comparison"))
@@ -389,7 +408,7 @@ Text to translate:
 
         message_to_display = self.texts.get(status_key, status_key)
         try:
-            if status_key in ["status_stopped", "status_completed_all", "status_completed_some", "status_translating_progress"] and args:
+            if status_key in ["status_stopped", "status_completed_all", "status_completed_some", "status_translating_progress", "status_chunk_progress"] and args:
                 message_to_display = message_to_display.format(args[0], args[1])
         except (IndexError, TypeError): pass
         self.progress_text_var.set(message_to_display)
