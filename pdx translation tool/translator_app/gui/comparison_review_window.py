@@ -707,10 +707,32 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         mode = self.display_mode_var.get()
         if mode == "diff":
             max_len = max(len(self.current_original_lines), len(self.current_translated_lines))
+            check_regex = self.check_regex_errors_var_crw.get()
+            check_source = self.check_source_remnants_var_crw.get()
+
             for i in range(max_len):
                 o = self.current_original_lines[i] if i < len(self.current_original_lines) else ""
                 t = self.current_translated_lines[i] if i < len(self.current_translated_lines) else ""
-                if o != t:
+
+                show_line = False
+
+                if check_regex or check_source:
+                    regex_err = False
+                    source_err = False
+                    if i < len(self.current_translated_lines):
+                        if check_regex:
+                            regex_err = self.translator_engine._check_line_for_yml_errors_engine(t)
+                        if check_source:
+                            value = self.translator_engine._extract_yml_value(t)
+                            source_err = self.translator_engine._check_source_remnants_optimized(
+                                value, self.current_original_lines, i)
+                    if regex_err or source_err:
+                        show_line = True
+                else:
+                    if o.strip() != t.strip():
+                        show_line = True
+
+                if show_line:
                     self.original_text_widget.insert(tk.END, o)
                     self.translated_text_widget.insert(tk.END, t)
         else:
