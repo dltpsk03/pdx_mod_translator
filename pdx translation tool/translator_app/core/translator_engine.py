@@ -137,7 +137,7 @@ class TranslatorEngine:
         pat_leading = self.compiled_regex_improper_leading_quote or re.compile(self.regex_error_improper_leading_quote_str)
 
         # 따옴표 개수 불균형 확인
-        if value_part.count('"') % 2 != 0:
+        if value_part.count('"') == 0 or value_part.count('"') % 2 != 0:
             return True
 
         if pat_leading.search(value_part):
