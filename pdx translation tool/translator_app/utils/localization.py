@@ -590,3 +590,19 @@ def get_language_code(lang_name_en):
         'Turkish': "turkish"
     }
     return mapping.get(lang_name_en, "english")
+
+def get_language_name(lang_code):
+    """Converts Paradox-style language code back to its English language name."""
+    mapping = {
+        "english": 'English',
+        "korean": 'Korean',
+        "simp_chinese": 'Simplified Chinese',
+        "french": 'French',
+        "german": 'German',
+        "spanish": 'Spanish',
+        "japanese": 'Japanese',
+        "portuguese": 'Portuguese',
+        "russian": 'Russian',
+        "turkish": 'Turkish'
+    }
+    return mapping.get(lang_code.lower(), 'English')
