@@ -112,126 +112,47 @@ class TranslatorEngine:
         return has_error
 
     def _check_line_for_yml_errors_engine(self, full_line):
-        """엔진용 전체 라인 YML 문법 오류 검사 - 수정된 버전"""
+        """전체 라인에 대한 YML 문법 오류 검사."""
         if not full_line or not full_line.strip():
             return False
-        
-        # 주석 제거
-        line_without_comment = full_line.split('#')[0].strip()
-        if not line_without_comment:
+
+        line_without_comment = full_line.split('#', 1)[0].rstrip()
+        if ':' not in line_without_comment:
             return False
-        
-        try:
-            # 콜론이 있는 라인만 검사
-            if ':' not in line_without_comment:
-                return False
-            
-            parts = line_without_comment.split(':', 1)
-            if len(parts) != 2:
-                return False
-            
-            key_part = parts[0].strip()
-            value_part = parts[1].strip()
-            
-            if not key_part:
-                return False
-            
-            # 값이 없거나 숫자/불린값이면 건너뛰기
-            if not value_part or re.match(r'^(true|false|null|\d+|\d*\.\d+)$', value_part.lower()):
-                return False
-            
-            # 패턴 1: ^[^"]*"([^"\\]|\\.)*$ - 매치되면 오류
-            pattern = r'^[^"]*"([^"\\]|\\.)*$'
-            if re.match(pattern, line_without_comment):
-                return True
-            
-            # 패턴 2: (?<![\r\n\t  ])"(?=[A-Za-z]) - 매치되면 오류
-            improper_quote_pattern = r'(?<![\r\n\t  ])"(?=[A-Za-z])'
-            if re.search(improper_quote_pattern, value_part):
-                return True
-            
-        except Exception:
-            pass
-        
+
+        key_part, value_part = (p.strip() for p in line_without_comment.split(':', 1))
+        if not key_part or not value_part:
+            return False
+
+        if re.fullmatch(r'(true|false|null|\d+|\d*\.\d+)', value_part.lower()):
+            return False
+
+        pat_unclosed = self.compiled_regex_valid_yml_value or re.compile(self.regex_valid_yml_value_str)
+        pat_leading = self.compiled_regex_improper_leading_quote or re.compile(self.regex_error_improper_leading_quote_str)
+
+        if pat_unclosed.match(line_without_comment):
+            return True
+
+        if pat_leading.search(value_part):
+            return True
+
         return False
 
     def _check_line_for_yml_errors(self, full_line):
-        """전체 라인에서 YML 문법 오류 검사 - 수정된 버전"""
-        if not full_line or not full_line.strip():
-            return False
-        
-        # 주석 제거
-        line_without_comment = full_line.split('#')[0].strip()
-        if not line_without_comment:
-            return False
-        
-        try:
-            # 콜론이 있는 라인만 검사
-            if ':' not in line_without_comment:
-                return False
-            
-            parts = line_without_comment.split(':', 1)
-            if len(parts) != 2:
-                return False
-            
-            key_part = parts[0].strip()
-            value_part = parts[1].strip()
-            
-            if not key_part:
-                return False
-            
-            # 값이 없거나 숫자/불린값이면 건너뛰기
-            if not value_part or re.match(r'^(true|false|null|\d+|\d*\.\d+)$', value_part.lower()):
-                return False
-            
-            # 패턴 1: ^[^"]*"([^"\\]|\\.)*$ - 매치되면 오류
-            pattern = r'^[^"]*"([^"\\]|\\.)*$'
-            if re.match(pattern, line_without_comment):
-                print(f"패턴1 오류 검출: {full_line.strip()}")
-                return True
-            
-            # 패턴 2: (?<![\r\n\t  ])"(?=[A-Za-z]) - 매치되면 오류
-            improper_quote_pattern = r'(?<![\r\n\t  ])"(?=[A-Za-z])'
-            if re.search(improper_quote_pattern, value_part):
-                print(f"패턴2 오류 검출: {full_line.strip()}")
-                return True
-            
-        except Exception as e:
-            print(f"검사 중 예외: {e}")
-            return False
-        
-        return False
+        """디버깅용 YML 오류 검사."""
+        result = self._check_line_for_yml_errors_engine(full_line)
+        return result
 
     def _check_source_remnants_optimized(self, value_text, original_lines, line_index):
-        """원본 언어 잔존 검사 - 영어 단어 1개 이상"""
-        if not value_text:
+        """원본과 동일한 값이 번역 결과에 남아있는지 확인."""
+        if value_text is None or line_index >= len(original_lines):
             return False
-        
-        try:
-            clean_text = value_text.strip()
-            
-            # 1. 너무 짧은 텍스트나 숫자/특수문자만 있는 경우 제외
-            if re.fullmatch(r'^[0-9\W_]{1,3}$', clean_text) or len(clean_text) <= 2:
-                return False
-            
-            # 2. 영어 단어가 1개 이상 있는지 확인
-            english_words = [w for w in clean_text.split() if re.match(r'[a-zA-Z]{2,}', w)]
-            if len(english_words) < 1:
-                return False
-            
-            # 3. 원본과 비교하여 정확히 동일한지 확인
-            if line_index < len(original_lines):
-                orig_value = self._extract_yml_value(original_lines[line_index])
-                if orig_value and orig_value.strip().lower() == clean_text.lower():
-                    return True  # 원본과 동일 = 번역되지 않음
-            else:
-                # 원본이 없는 경우에도 영어 단어가 있으면 의심
-                return True
-                                
-        except:
-            pass
-        
-        return False
+
+        orig_value = self._extract_yml_value(original_lines[line_index])
+        if orig_value is None:
+            return False
+
+        return orig_value.strip() == value_text.strip()
 
     def _translate_batch_core(self, text_batch, temperature=0.2, retry=False):
         batch_text_content = "\n".join([line.rstrip('\n') for line in text_batch])
