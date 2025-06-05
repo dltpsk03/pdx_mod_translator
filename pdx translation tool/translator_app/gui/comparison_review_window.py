@@ -726,8 +726,13 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                             value = self.translator_engine._extract_yml_value(t)
                             source_err = self.translator_engine._check_source_remnants_optimized(
                                 value, self.current_original_lines, i)
-                    if regex_err or source_err:
-                        show_line = True
+
+                    if check_regex and not check_source:
+                        show_line = regex_err
+                    elif check_source and not check_regex:
+                        show_line = source_err
+                    else:  # both selected
+                        show_line = regex_err or source_err
                 else:
                     if o.strip() != t.strip():
                         show_line = True
