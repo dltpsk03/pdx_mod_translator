@@ -713,7 +713,6 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
             for i in range(max_len):
                 o = self.current_original_lines[i] if i < len(self.current_original_lines) else ""
                 t = self.current_translated_lines[i] if i < len(self.current_translated_lines) else ""
-                if o != t:
 
                 show_line = False
 
