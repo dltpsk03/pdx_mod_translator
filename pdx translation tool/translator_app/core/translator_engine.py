@@ -549,7 +549,21 @@ class TranslatorEngine:
         try:
             target_files = []
             source_lang_code_for_search = self.get_language_code(self.source_lang_for_api).lower()
-            file_identifier_for_search = f"l_{source_lang_code_for_search}"
+            if self.keep_identifier:
+                detected_identifier = None
+                for root_path, _, files_in_dir in os.walk(input_dir):
+                    if self.stop_event.is_set():
+                        break
+                    for file_name in files_in_dir:
+                        match = re.search(r"l_[a-zA-Z_]+", file_name.lower())
+                        if match:
+                            detected_identifier = match.group(0)
+                            break
+                    if detected_identifier or self.stop_event.is_set():
+                        break
+                file_identifier_for_search = detected_identifier or "l_english"
+            else:
+                file_identifier_for_search = f"l_{source_lang_code_for_search}"
             self.log_callback("log_search_yml_files", file_identifier_for_search)
 
             for root_path, _, files_in_dir in os.walk(input_dir):
@@ -570,7 +584,8 @@ class TranslatorEngine:
                     for file_name in files_in_dir:
                         if self.stop_event.is_set():
                             break
-                        if file_name.lower().startswith('l_english') and file_name.lower().endswith(('.yml', '.yaml')):
+                        lower_name = file_name.lower()
+                        if 'l_english' in lower_name and lower_name.endswith(('.yml', '.yaml')):
                             target_files.append(os.path.join(root_path, file_name))
                     if self.stop_event.is_set():
                         break
