@@ -43,7 +43,8 @@ class TranslatorEngine:
         self.regex_valid_yml_value_str = r'^[^"]*"([^"\\]|\\.)*$'
 
         # 2. 부적절한 선행 따옴표 패턴
-        self.regex_error_improper_leading_quote_str = r'(?<![\r\n\t  ])"(?=[A-Za-z])'
+        # 첫 따옴표를 정상으로 인식하도록 문자열 시작 위치에서는 매치되지 않게 수정
+        self.regex_error_improper_leading_quote_str = r'(?<!^)(?<![\r\n\t ])"(?=[A-Za-z])'
 
         # 정규표현식 컴파일된 객체들 (성능 향상을 위해 미리 컴파일)
         self.compiled_regex_valid_yml_value = None
