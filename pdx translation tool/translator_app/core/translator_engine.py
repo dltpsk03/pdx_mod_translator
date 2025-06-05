@@ -233,7 +233,7 @@ class TranslatorEngine:
         
         return False
 
-    def _translate_batch_core(self, text_batch, temperature=0.2):
+    def _translate_batch_core(self, text_batch, temperature=0.2, retry=False):
         batch_text_content = "\n".join([line.rstrip('\n') for line in text_batch])
         try:
             final_prompt = self.prompt_template_str.format(
@@ -348,6 +348,10 @@ class TranslatorEngine:
                     self.log_callback("log_batch_single_line_api_limit", self.current_processing_file_for_log)
                     return [line if line.endswith('\n') else line + '\n' for line in text_batch]
             self.log_callback("log_batch_unknown_error", self.current_processing_file_for_log, str(e))
+            if not retry:
+                self.log_callback("log_batch_retrying", self.current_processing_file_for_log, str(e))
+                time.sleep(self.delay_between_batches)
+                return self._translate_batch_core(text_batch, temperature, True)
             return [line if line.endswith('\n') else line + '\n' for line in text_batch]
 
     def get_language_code(self, lang_name_en_from_ui):
@@ -510,7 +514,9 @@ class TranslatorEngine:
                         break
                     result_file = fut.result()
                     if result_file:
-                        translated_chunk_content_files.append((future_to_index[fut], result_file))
+                        idx = future_to_index[fut]
+                        translated_chunk_content_files.append((idx, result_file))
+                        self.log_callback("log_chunk_completed", idx + 1, num_chunks)
 
             if not self.stop_event.is_set() and len(translated_chunk_content_files) == num_chunks:
                 self.log_callback("log_merging_chunks", final_output_file_path)
