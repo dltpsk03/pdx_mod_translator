@@ -35,6 +35,7 @@ class SettingsManager:
                 app_vars["delay_between_batches_var"].set(config.get("delay_between_batches", 0.8))
                 app_vars["keep_identifier_var"].set(config.get("keep_identifier", False))
                 app_vars["check_internal_lang_var"].set(config.get("check_internal_lang", False))
+                app_vars["split_threshold_var"].set(config.get("split_threshold", 0))
 
                 prompt_str = config.get("custom_prompt", self.default_prompt_template)
                 if prompt_str != self.default_prompt_template:
@@ -68,6 +69,7 @@ class SettingsManager:
             "delay_between_batches": app_vars["delay_between_batches_var"].get(),
             "keep_identifier": app_vars["keep_identifier_var"].get(),
             "check_internal_lang": app_vars["check_internal_lang_var"].get(),
+            "split_threshold": app_vars["split_threshold_var"].get(),
             "custom_prompt": current_prompt,
             "glossaries": glossary_file_paths
         }

@@ -82,7 +82,7 @@ LANGUAGES = {
         "log_batch_single_line_token_limit": "파일 '{0}', 배치 처리: 한 줄의 내용도 토큰 한계를 초과합니다. 원본 내용을 반환합니다.", "log_batch_abnormal_termination": "파일 '{0}', 배치 처리: 번역이 비정상적으로 종료되었습니다 ({1}). 원본 내용을 반환합니다.",
         "log_batch_empty_response": "파일 '{0}', 배치 처리: API로부터 빈 응답을 받았습니다. 원본 내용을 반환합니다.", "log_batch_line_mismatch": "파일 '{0}', 배치 처리: 번역된 줄 수가 원본과 다릅니다. 조정 없이 그대로 반환합니다.",
         "log_batch_api_limit_error_split": "파일 '{0}', 배치 처리: API 요청 제한 관련 오류 발생 ({1}). 배치를 나눠 다시 시도합니다.", "log_batch_single_line_api_limit": "파일 '{0}', 배치 처리: 한 줄의 내용도 API 요청 제한 오류가 발생했습니다. 원본 내용을 반환합니다.",
-        "log_batch_unknown_error": "파일 '{0}', 배치 처리 중 알 수 없는 오류 발생: {1}", "log_file_process_stopped": "파일 '{0}' 처리 중 작업이 중지되었습니다.",
+        "log_batch_unknown_error": "파일 '{0}', 배치 처리 중 알 수 없는 오류 발생: {1}", "log_batch_retrying": "파일 '{0}', 오류 발생으로 배치를 한번 더 시도합니다. ({1})", "log_file_process_stopped": "파일 '{0}' 처리 중 작업이 중지되었습니다.",
         "log_file_completed": "파일 처리 완료: {0}", "status_translating_progress": "번역 진행 중... ({0}/{1})",
         "log_no_yml_files_found_short": "파일 없음", "log_search_yml_files_short": "파일 검색 중...",
         "status_stopped_short": "중지됨", "status_completed_some_short": "일부 완료", "status_completed_all_short": "모두 완료",
@@ -131,6 +131,7 @@ LANGUAGES = {
         # 파일 분할 번역 로그
         "log_file_split_start": "파일 '{0}'({1}줄)이 너무 커서 {2}줄 단위로 분할하여 번역합니다.",
         "log_processing_chunk": "청크 {0}/{1} ('{2}') 처리 중...",
+        "log_chunk_completed": "청크 {0}/{1} 완료.",
         "log_merging_chunks": "번역된 청크들을 최종 파일 '{0}'(으)로 병합 중...",
         "log_chunk_processing_stopped": "파일 '{0}'의 청크 처리 중 중단되었습니다.",
         "log_chunk_processing_failed": "파일 '{0}'의 일부 청크 처리에 실패했습니다.",
@@ -267,7 +268,7 @@ LANGUAGES = {
         "log_batch_single_line_token_limit": "File '{0}', batch processing: Single line content exceeds token limit. Returning original content.", "log_batch_abnormal_termination": "File '{0}', batch processing: Translation terminated abnormally ({1}). Returning original content.",
         "log_batch_empty_response": "File '{0}', batch processing: Received empty response from API. Returning original content.", "log_batch_line_mismatch": "File '{0}', batch processing: Translated line count differs from original. Returning as-is without adjustment.",
         "log_batch_api_limit_error_split": "File '{0}', batch processing: API request limit error ({1}). Splitting batch and retrying.", "log_batch_single_line_api_limit": "File '{0}', batch processing: Single line content caused API request limit error. Returning original content.",
-        "log_batch_unknown_error": "File '{0}', unknown error during batch processing: {1}", "log_file_process_stopped": "Processing stopped for file '{0}'.",
+        "log_batch_unknown_error": "File '{0}', unknown error during batch processing: {1}", "log_batch_retrying": "File '{0}', error occurred. Retrying batch once. ({1})", "log_file_process_stopped": "Processing stopped for file '{0}'.",
         "log_file_completed": "File processing completed: {0}", "status_translating_progress": "Translating... ({0}/{1})",
         "log_no_yml_files_found_short": "No files", "log_search_yml_files_short": "Searching files...",
         "status_stopped_short": "Stopped", "status_completed_some_short": "Partial", "status_completed_all_short": "All Done",
@@ -333,6 +334,7 @@ LANGUAGES = {
         # File splitting logs
         "log_file_split_start": "File '{0}' ({1} lines) is too large, splitting and translating in chunks of {2} lines.",
         "log_processing_chunk": "Processing chunk {0}/{1} ('{2}')...",
+        "log_chunk_completed": "Chunk {0}/{1} completed.",
         "log_merging_chunks": "Merging translated chunks into final file '{0}'...",
         "log_chunk_processing_stopped": "Chunk processing stopped for file '{0}'.",
         "log_chunk_processing_failed": "Failed to process some chunks for file '{0}'.",
@@ -469,7 +471,7 @@ LANGUAGES = {
         "log_batch_single_line_token_limit": "文件 '{0}', 批处理：单行内容也超出令牌限制。返回原始内容。", "log_batch_abnormal_termination": "文件 '{0}', 批处理：翻译异常终止 ({1})。返回原始内容。", # 이전과 동일
         "log_batch_empty_response": "文件 '{0}', 批处理：从 API 收到空响应。返回原始内容。", "log_batch_line_mismatch": "文件 '{0}', 批处理：翻译后的行数与原始行数不符。将原样返回，不进行调整。", # 이전과 동일
         "log_batch_api_limit_error_split": "文件 '{0}', 批处理：发生 API 请求限制相关错误 ({1})。将拆分批次并重试。", "log_batch_single_line_api_limit": "文件 '{0}', 批处理：单行内容也发生 API 请求限制错误。返回原始内容。", # 이전과 동일
-        "log_batch_unknown_error": "文件 '{0}', 批处理过程中发生未知错误: {1}", "log_file_process_stopped": "处理文件 '{0}' 时任务已停止。", # 수정됨
+        "log_batch_unknown_error": "文件 '{0}', 批处理过程中发生未知错误: {1}", "log_batch_retrying": "文件 '{0}' 发生错误，正在重试该批次。 ({1})", "log_file_process_stopped": "处理文件 '{0}' 时任务已停止。", # 수정됨
         "log_file_completed": "文件处理完成: {0}", "status_translating_progress": "翻译进行中... ({0}/{1})", # 수정됨
         "log_no_yml_files_found_short": "无文件", "log_search_yml_files_short": "正在搜索文件...", # 이전과 동일
         "status_stopped_short": "已停止", "status_completed_some_short": "部分完成", "status_completed_all_short": "全部完成", # 수정됨
@@ -518,6 +520,7 @@ LANGUAGES = {
         # 파일 분할 번역 로그
         "log_file_split_start": "文件 '{0}' ({1}行) 过大，将按 {2} 行拆分翻译。",
         "log_processing_chunk": "正在处理分块 {0}/{1} ('{2}')...",
+        "log_chunk_completed": "分块 {0}/{1} 完成。",
         "log_merging_chunks": "正在将翻译后的分块合并到最终文件 '{0}'...",
         "log_chunk_processing_stopped": "文件 '{0}' 的分块处理已停止。",
         "log_chunk_processing_failed": "文件 '{0}' 的部分分块处理失败。",
