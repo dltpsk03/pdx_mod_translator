@@ -713,12 +713,13 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
             for i in range(max_len):
                 o = self.current_original_lines[i] if i < len(self.current_original_lines) else ""
                 t = self.current_translated_lines[i] if i < len(self.current_translated_lines) else ""
+                if o != t:
 
-                line_diff = o.strip() != t.strip()
-                regex_err = False
-                source_err = False
+                show_line = False
 
                 if check_regex or check_source:
+                    regex_err = False
+                    source_err = False
                     if i < len(self.current_translated_lines):
                         if check_regex:
                             regex_err = self.translator_engine._check_line_for_yml_errors_engine(t)
@@ -726,8 +727,13 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                             value = self.translator_engine._extract_yml_value(t)
                             source_err = self.translator_engine._check_source_remnants_optimized(
                                 value, self.current_original_lines, i)
+                    if regex_err or source_err:
+                        show_line = True
+                else:
+                    if o.strip() != t.strip():
+                        show_line = True
 
-                if line_diff or regex_err or source_err:
+                if show_line:
                     self.original_text_widget.insert(tk.END, o)
                     self.translated_text_widget.insert(tk.END, t)
         else:
