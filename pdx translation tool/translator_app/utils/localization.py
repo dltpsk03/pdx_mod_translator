@@ -80,7 +80,7 @@ LANGUAGES = {
         "log_stop_requested": "작업 중지 요청됨...", "ui_lang_self_name": "한국어",
         "log_batch_prompt_blocked": "파일 '{0}', 배치 처리: API 프롬프트가 차단되었습니다 (이유: {1}). 원본 내용을 반환합니다.", "log_batch_token_limit": "파일 '{0}', 배치 처리: API 출력 토큰 한계에 도달했습니다 (사유 코드: {1}). 배치를 나눠 다시 시도합니다.",
         "log_batch_single_line_token_limit": "파일 '{0}', 배치 처리: 한 줄의 내용도 토큰 한계를 초과합니다. 원본 내용을 반환합니다.", "log_batch_abnormal_termination": "파일 '{0}', 배치 처리: 번역이 비정상적으로 종료되었습니다 ({1}). 원본 내용을 반환합니다.",
-        "log_batch_empty_response": "파일 '{0}', 배치 처리: API로부터 빈 응답을 받았습니다. 원본 내용을 반환합니다.", "log_batch_line_mismatch": "파일 '{0}', 배치 처리: 번역된 줄 수가 원본과 다릅니다. 부족한 부분은 원본으로 채웁니다.",
+        "log_batch_empty_response": "파일 '{0}', 배치 처리: API로부터 빈 응답을 받았습니다. 원본 내용을 반환합니다.", "log_batch_line_mismatch": "파일 '{0}', 배치 처리: 번역된 줄 수가 원본과 다릅니다. 조정 없이 그대로 반환합니다.",
         "log_batch_api_limit_error_split": "파일 '{0}', 배치 처리: API 요청 제한 관련 오류 발생 ({1}). 배치를 나눠 다시 시도합니다.", "log_batch_single_line_api_limit": "파일 '{0}', 배치 처리: 한 줄의 내용도 API 요청 제한 오류가 발생했습니다. 원본 내용을 반환합니다.",
         "log_batch_unknown_error": "파일 '{0}', 배치 처리 중 알 수 없는 오류 발생: {1}", "log_file_process_stopped": "파일 '{0}' 처리 중 작업이 중지되었습니다.",
         "log_file_completed": "파일 처리 완료: {0}", "status_translating_progress": "번역 진행 중... ({0}/{1})",
@@ -265,7 +265,7 @@ LANGUAGES = {
         "log_stop_requested": "Stop process requested...", "ui_lang_self_name": "English",
         "log_batch_prompt_blocked": "File '{0}', batch processing: API prompt blocked (reason: {1}). Returning original content.", "log_batch_token_limit": "File '{0}', batch processing: API output token limit reached (reason code: {1}). Splitting batch and retrying.",
         "log_batch_single_line_token_limit": "File '{0}', batch processing: Single line content exceeds token limit. Returning original content.", "log_batch_abnormal_termination": "File '{0}', batch processing: Translation terminated abnormally ({1}). Returning original content.",
-        "log_batch_empty_response": "File '{0}', batch processing: Received empty response from API. Returning original content.", "log_batch_line_mismatch": "File '{0}', batch processing: Translated line count differs from original. Missing lines filled with original content.",
+        "log_batch_empty_response": "File '{0}', batch processing: Received empty response from API. Returning original content.", "log_batch_line_mismatch": "File '{0}', batch processing: Translated line count differs from original. Returning as-is without adjustment.",
         "log_batch_api_limit_error_split": "File '{0}', batch processing: API request limit error ({1}). Splitting batch and retrying.", "log_batch_single_line_api_limit": "File '{0}', batch processing: Single line content caused API request limit error. Returning original content.",
         "log_batch_unknown_error": "File '{0}', unknown error during batch processing: {1}", "log_file_process_stopped": "Processing stopped for file '{0}'.",
         "log_file_completed": "File processing completed: {0}", "status_translating_progress": "Translating... ({0}/{1})",
@@ -467,7 +467,7 @@ LANGUAGES = {
         "log_stop_requested": "已请求停止任务...", "ui_lang_self_name": "简体中文", # 수정됨
         "log_batch_prompt_blocked": "文件 '{0}', 批处理：API 提示词被阻止 (原因: {1})。返回原始内容。", "log_batch_token_limit": "文件 '{0}', 批处理：已达到 API 输出令牌限制 (原因代码: {1})。将拆分批次并重试。", # 이전과 동일
         "log_batch_single_line_token_limit": "文件 '{0}', 批处理：单行内容也超出令牌限制。返回原始内容。", "log_batch_abnormal_termination": "文件 '{0}', 批处理：翻译异常终止 ({1})。返回原始内容。", # 이전과 동일
-        "log_batch_empty_response": "文件 '{0}', 批处理：从 API 收到空响应。返回原始内容。", "log_batch_line_mismatch": "文件 '{0}', 批处理：翻译后的行数与原始行数不符。缺失部分将用原始内容填充。", # 이전과 동일
+        "log_batch_empty_response": "文件 '{0}', 批处理：从 API 收到空响应。返回原始内容。", "log_batch_line_mismatch": "文件 '{0}', 批处理：翻译后的行数与原始行数不符。将原样返回，不进行调整。", # 이전과 동일
         "log_batch_api_limit_error_split": "文件 '{0}', 批处理：发生 API 请求限制相关错误 ({1})。将拆分批次并重试。", "log_batch_single_line_api_limit": "文件 '{0}', 批处理：单行内容也发生 API 请求限制错误。返回原始内容。", # 이전과 동일
         "log_batch_unknown_error": "文件 '{0}', 批处理过程中发生未知错误: {1}", "log_file_process_stopped": "处理文件 '{0}' 时任务已停止。", # 수정됨
         "log_file_completed": "文件处理完成: {0}", "status_translating_progress": "翻译进行中... ({0}/{1})", # 수정됨

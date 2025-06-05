@@ -306,9 +306,8 @@ class TranslatorEngine:
             translated_lines_raw = translated_text.split('\n')
             processed_lines = []
 
-            for i in range(len(text_batch)):
-                if i < len(translated_lines_raw):
-                    api_translated_line = translated_lines_raw[i]
+            for i, api_translated_line in enumerate(translated_lines_raw):
+                if i < len(text_batch):
                     original_line_content = text_batch[i]
                     original_ends_with_newline = original_line_content.endswith('\n')
 
@@ -317,13 +316,17 @@ class TranslatorEngine:
                     elif not original_ends_with_newline and api_translated_line.endswith('\n'):
                         processed_lines.append(api_translated_line.rstrip('\n'))
                     else:
-                        processed_lines.append(api_translated_line) 
-                else: 
-                    self.log_callback("log_batch_line_mismatch", self.current_processing_file_for_log, "Translated lines less than original, padding with original.")
-                    processed_lines.append(text_batch[i]) 
-            
-            if len(translated_lines_raw) > len(text_batch):
-                 self.log_callback("log_batch_line_mismatch", self.current_processing_file_for_log, "Translated lines more than original, truncating.")
+                        processed_lines.append(api_translated_line)
+                else:
+                    processed_lines.append(api_translated_line)
+
+            if len(translated_lines_raw) != len(text_batch):
+                self.log_callback(
+                    "log_batch_line_mismatch",
+                    self.current_processing_file_for_log,
+                    f"Original: {len(text_batch)}, Translated: {len(translated_lines_raw)}"
+                )
+
             return processed_lines
 
         except Exception as e:
