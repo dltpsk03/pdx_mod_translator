@@ -27,6 +27,17 @@ class ControlPanel(ctk.CTkFrame):
         self.stop_btn_widget.pack(side="left", padx=(5,0))
         self.stop_btn_tooltip = Tooltip(self.stop_btn_widget, "") # 툴팁은 번역 중지용으로 유지
 
+        # --- UI 새로고침 버튼 ---
+        self.refresh_ui_button = ctk.CTkButton(
+            button_container_frame,
+            text="🔄",
+            width=32,
+            height=32,
+            command=self.main_app.refresh_ui
+        )
+        self.refresh_ui_button.pack(side="left", padx=(5,0))
+        self.refresh_button_tooltip = Tooltip(self.refresh_ui_button, "")
+
         # 진행 상황 프레임 (이전과 동일)
         self.progress_frame_display = ctk.CTkFrame(self, corner_radius=10)
         self.progress_frame_display.pack(fill="x", padx=0, pady=(10,0)) # 버튼과 간격 추가
@@ -60,3 +71,5 @@ class ControlPanel(ctk.CTkFrame):
             self.stop_btn_widget.configure(text=texts.get("stop_button"))
             self.stop_btn_tooltip.update_text(texts.get("stop_button_tooltip"))
             self.progress_frame_display_title_label.configure(text=texts.get("progress_frame"))
+            if hasattr(self, 'refresh_button_tooltip'):
+                self.refresh_button_tooltip.update_text(texts.get("refresh_button_tooltip", "Refresh"))
