@@ -13,6 +13,10 @@ python "pdx translation tool/run_translator.py"
 
 This command opens the GUI where you can configure translation options and process mod files.
 
+
+OR
+
+Download .EXE file on Release Tab
 ## Dependencies
 
 - [customtkinter](https://github.com/TomSchimansky/CustomTkinter)
