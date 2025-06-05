@@ -594,12 +594,17 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         # 3. 언어 코드 교체해서 찾기
         if not original_path_found and target_lang_l_prefix_lower in file_output_name.lower():
             potential_original_name = re.sub(
-                target_lang_l_prefix_lower, source_lang_l_prefix_lower,
-                file_output_name.lower(), flags=re.IGNORECASE
+                target_lang_l_prefix_lower,
+                source_lang_l_prefix_lower,
+                file_output_name.lower(),
+                flags=re.IGNORECASE,
             )
-            key_lang_replaced = (relative_dir_output.replace("\\", "/"), potential_original_name)
-        if key_lang_replaced in input_files_info:
-            original_path_found = input_files_info[key_lang_replaced]
+            key_lang_replaced = (
+                relative_dir_output.replace("\\", "/"),
+                potential_original_name,
+            )
+            if key_lang_replaced in input_files_info:
+                original_path_found = input_files_info[key_lang_replaced]
 
         return original_path_found
 
