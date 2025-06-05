@@ -465,40 +465,49 @@ class TranslatorEngine:
             content_start_index_in_original = 1 if first_line_match_in_original else 0
             actual_content_lines = all_lines[content_start_index_in_original:]
 
-            for i in range(num_chunks):
-                if self.stop_event.is_set(): break
-                
-                chunk_content_start = i * chunk_size
-                chunk_content_end = min((i + 1) * chunk_size, len(actual_content_lines))
-                current_chunk_original_content_lines = actual_content_lines[chunk_content_start:chunk_content_end]
-
-                if not current_chunk_original_content_lines: continue
-                
-                self.log_callback("log_processing_chunk", i + 1, num_chunks, f"{os.path.basename(original_input_file_path)} part {i+1}")
-                
+            def translate_chunk(index, chunk_lines):
                 translated_current_chunk_content = []
-                for batch_start in range(0, len(current_chunk_original_content_lines), self.batch_size):
-                    if self.stop_event.is_set(): break
-                    batch_to_translate = current_chunk_original_content_lines[batch_start : batch_start + self.batch_size]
-                    if not batch_to_translate: continue
-
+                for batch_start in range(0, len(chunk_lines), self.batch_size):
+                    if self.stop_event.is_set():
+                        break
+                    batch_to_translate = chunk_lines[batch_start: batch_start + self.batch_size]
+                    if not batch_to_translate:
+                        continue
                     original_log_filename = self.current_processing_file_for_log
-                    self.current_processing_file_for_log = f"{os.path.basename(original_input_file_path)} (chunk {i+1})"
-                    
+                    self.current_processing_file_for_log = f"{os.path.basename(original_input_file_path)} (chunk {index+1})"
                     translated_batch = self._translate_batch_core(batch_to_translate)
                     translated_current_chunk_content.extend(translated_batch)
-                    
                     self.current_processing_file_for_log = original_log_filename
-
-                    if batch_start + self.batch_size < len(current_chunk_original_content_lines) and not self.stop_event.is_set() and self.delay_between_batches > 0:
+                    if batch_start + self.batch_size < len(chunk_lines) and not self.stop_event.is_set() and self.delay_between_batches > 0:
                         time.sleep(self.delay_between_batches)
-                
-                if self.stop_event.is_set(): break
 
-                temp_chunk_output_content_file = os.path.join(temp_dir, f"chunk_{i}_translated_content.yml")
+                if self.stop_event.is_set():
+                    return None
+                temp_chunk_output_content_file = os.path.join(temp_dir, f"chunk_{index}_translated_content.yml")
                 with codecs.open(temp_chunk_output_content_file, 'w', encoding='utf-8-sig') as f_out_content:
                     f_out_content.writelines(translated_current_chunk_content)
-                translated_chunk_content_files.append(temp_chunk_output_content_file)
+                return temp_chunk_output_content_file
+
+            with concurrent.futures.ThreadPoolExecutor(max_workers=self.max_workers) as executor:
+                future_to_index = {}
+                for i in range(num_chunks):
+                    if self.stop_event.is_set():
+                        break
+                    chunk_start = i * chunk_size
+                    chunk_end = min((i + 1) * chunk_size, len(actual_content_lines))
+                    chunk_lines = actual_content_lines[chunk_start:chunk_end]
+                    if not chunk_lines:
+                        continue
+                    self.log_callback("log_processing_chunk", i + 1, num_chunks, f"{os.path.basename(original_input_file_path)} part {i+1}")
+                    fut = executor.submit(translate_chunk, i, chunk_lines)
+                    future_to_index[fut] = i
+
+                for fut in concurrent.futures.as_completed(future_to_index):
+                    if self.stop_event.is_set():
+                        break
+                    result_file = fut.result()
+                    if result_file:
+                        translated_chunk_content_files.append((future_to_index[fut], result_file))
 
             if not self.stop_event.is_set() and len(translated_chunk_content_files) == num_chunks:
                 self.log_callback("log_merging_chunks", final_output_file_path)
@@ -506,7 +515,7 @@ class TranslatorEngine:
                 with codecs.open(final_output_file_path, 'w', encoding='utf-8-sig') as f_final:
                     if first_line_content_for_final_output:
                         f_final.write(first_line_content_for_final_output)
-                    for chunk_content_file in translated_chunk_content_files:
+                    for _, chunk_content_file in sorted(translated_chunk_content_files, key=lambda x: x[0]):
                         with codecs.open(chunk_content_file, 'r', encoding='utf-8-sig') as f_chunk_read:
                             f_final.writelines(f_chunk_read.readlines())
                 self.log_callback("log_translation_complete_save", os.path.basename(final_output_file_path))
@@ -544,12 +553,27 @@ class TranslatorEngine:
             self.log_callback("log_search_yml_files", file_identifier_for_search)
 
             for root_path, _, files_in_dir in os.walk(input_dir):
-                if self.stop_event.is_set(): break
+                if self.stop_event.is_set():
+                    break
                 for file_name in files_in_dir:
-                    if self.stop_event.is_set(): break
+                    if self.stop_event.is_set():
+                        break
                     if file_identifier_for_search in file_name.lower() and file_name.lower().endswith(('.yml', '.yaml')):
                         target_files.append(os.path.join(root_path, file_name))
-                if self.stop_event.is_set(): break
+                if self.stop_event.is_set():
+                    break
+
+            if not target_files and source_lang_code_for_search != "english":
+                for root_path, _, files_in_dir in os.walk(input_dir):
+                    if self.stop_event.is_set():
+                        break
+                    for file_name in files_in_dir:
+                        if self.stop_event.is_set():
+                            break
+                        if file_name.lower().startswith('l_english') and file_name.lower().endswith(('.yml', '.yaml')):
+                            target_files.append(os.path.join(root_path, file_name))
+                    if self.stop_event.is_set():
+                        break
 
             if self.stop_event.is_set():
                 self.log_callback("log_translation_stopped_by_user")

@@ -598,25 +598,155 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                 file_output_name.lower(), flags=re.IGNORECASE
             )
             key_lang_replaced = (relative_dir_output.replace("\\", "/"), potential_original_name)
-            if key_lang_replaced in input_files_info:
-                original_path_found = input_files_info[key_lang_replaced]
-        
+        if key_lang_replaced in input_files_info:
+            original_path_found = input_files_info[key_lang_replaced]
+
         return original_path_found
 
-    def _create_display_name(self, original_path, translated_path, rel_orig_display, rel_trans_display, has_regex_error, has_source_error):
-        """표시용 파일명 생성"""
+    def _create_display_name(self, original_path, translated_path, rel_orig_display, rel_trans_display,
+                             has_regex_error, has_source_error):
+        """파일 목록에 표시할 이름 생성"""
         orig_name = os.path.basename(original_path)
         trans_name = os.path.basename(translated_path)
-        
-        # 에러 태그 생성
+
         error_tags = []
         if has_regex_error:
             error_tags.append("🔧")
         if has_source_error:
             error_tags.append("🔄")
-        
+
         error_suffix = f" {' '.join(error_tags)}" if error_tags else ""
-        
-        # 상대 경로 표시 (루트가 아닌 경우에만)
+
         orig_path_display = f"/{rel_orig_display}" if rel_orig_display != "." else ""
         trans_path_display = f"/{rel_trans_display}" if rel_trans_display != "." else ""
+
+        return f"{orig_name}{orig_path_display} → {trans_name}{trans_path_display}{error_suffix}"
+
+    def scan_single_file_for_errors(self, original_path, translated_path):
+        """단일 파일 쌍에 대해 오류 스캔"""
+        has_regex_error = False
+        has_source_error = False
+
+        translated_lines = []
+        try:
+            with codecs.open(translated_path, 'r', encoding='utf-8-sig') as ft:
+                translated_lines = ft.readlines()
+        except Exception:
+            return False, False
+
+        original_lines = []
+        if os.path.exists(original_path):
+            try:
+                with codecs.open(original_path, 'r', encoding='utf-8-sig') as fo:
+                    original_lines = fo.readlines()
+            except Exception:
+                original_lines = []
+
+        for idx, t_line in enumerate(translated_lines):
+            if self.translator_engine._check_line_for_yml_errors_engine(t_line):
+                has_regex_error = True
+            value = self.translator_engine._extract_yml_value(t_line)
+            if self.translator_engine._check_source_remnants_optimized(value, original_lines, idx):
+                has_source_error = True
+            if has_regex_error and has_source_error:
+                break
+
+        return has_regex_error, has_source_error
+
+    def filter_and_update_file_listbox(self, redisplay_current_content=False):
+        """필터링 조건에 맞게 파일 목록 갱신"""
+        self.file_pair_listbox.delete(0, tk.END)
+        self.current_display_file_pairs_indices.clear()
+
+        for idx, pair in enumerate(self.all_file_pairs):
+            if self.check_regex_errors_var_crw.get() and not pair["has_regex_error"]:
+                continue
+            if self.check_source_remnants_var_crw.get() and not pair["has_source_error"]:
+                continue
+            self.current_display_file_pairs_indices.append(idx)
+            self.file_pair_listbox.insert(tk.END, pair["display"])
+
+        if redisplay_current_content:
+            self.redisplay_content_if_loaded()
+
+    def load_selected_pair_and_display(self):
+        """선택된 파일 쌍 로드 후 표시"""
+        selection = self.file_pair_listbox.curselection()
+        if not selection:
+            return
+        real_index = self.current_display_file_pairs_indices[selection[0]]
+        pair = self.all_file_pairs[real_index]
+        self.current_selected_pair_paths = (pair["original"], pair["translated"])
+
+        self.current_original_lines = []
+        self.current_translated_lines = []
+        try:
+            with codecs.open(pair["original"], 'r', encoding='utf-8-sig') as fo:
+                self.current_original_lines = fo.readlines()
+        except Exception:
+            pass
+        try:
+            with codecs.open(pair["translated"], 'r', encoding='utf-8-sig') as ft:
+                self.current_translated_lines = ft.readlines()
+        except Exception:
+            pass
+
+        self._display_loaded_content()
+
+    def _display_loaded_content(self):
+        self.original_text_widget.configure(state="normal")
+        self.translated_text_widget.configure(state="normal")
+        self.original_text_widget.delete("1.0", tk.END)
+        self.translated_text_widget.delete("1.0", tk.END)
+
+        mode = self.display_mode_var.get()
+        if mode == "diff":
+            max_len = max(len(self.current_original_lines), len(self.current_translated_lines))
+            for i in range(max_len):
+                o = self.current_original_lines[i] if i < len(self.current_original_lines) else ""
+                t = self.current_translated_lines[i] if i < len(self.current_translated_lines) else ""
+                if o != t:
+                    self.original_text_widget.insert(tk.END, o)
+                    self.translated_text_widget.insert(tk.END, t)
+        else:
+            self.original_text_widget.insert("1.0", "".join(self.current_original_lines))
+            self.translated_text_widget.insert("1.0", "".join(self.current_translated_lines))
+
+        self.original_text_widget.configure(state="disabled")
+        self.translated_text_widget.configure(state="normal")
+
+    def redisplay_content_if_loaded(self):
+        if self.current_selected_pair_paths:
+            self._display_loaded_content()
+
+    def save_translated_file(self):
+        if not self.current_selected_pair_paths:
+            return
+        new_text = self.translated_text_widget.get("1.0", tk.END)
+        try:
+            with codecs.open(self.current_selected_pair_paths[1], 'w', encoding='utf-8-sig') as ft:
+                ft.write(new_text)
+            messagebox.showinfo(self.texts.get("info_title", "Info"),
+                                self.texts.get("review_save_success", "Saved."))
+        except Exception as e:
+            messagebox.showerror(self.texts.get("error_title", "Error"), str(e))
+
+    def _refresh_file_list(self):
+        self.pre_scan_files_for_errors()
+        self.filter_and_update_file_listbox()
+        self._update_stats()
+        self.redisplay_content_if_loaded()
+
+    def update_language_texts(self, new_texts):
+        self.texts = new_texts
+        self.title(self.texts.get("comparison_review_window_title", "File Comparison and Review"))
+        self.all_lines_radio.configure(text=self.texts.get("comparison_review_display_all_lines", "Display All Lines"))
+        self.diff_lines_radio.configure(text=self.texts.get("comparison_review_display_diff_only", "Display Differences Only"))
+        self.regex_checkbox_crw.configure(text=self.texts.get("comparison_review_error_regex", "Regex Errors"))
+        self.source_remnants_checkbox_crw.configure(text=self.texts.get("comparison_review_error_source_lang", "Source Lang Remnants"))
+        self.save_button.configure(text=self.texts.get("comparison_review_save_changes_button", "Save Changes"))
+        self.refresh_button.configure(text="🔄 " + self.texts.get("review_refresh", "Refresh"))
+
+    def on_closing(self):
+        self.destroy()
+
