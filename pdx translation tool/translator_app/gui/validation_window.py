@@ -888,10 +888,20 @@ class ValidationWindow(ctk.CTkToplevel):
                     max_output_tokens=self.master_app.max_tokens_var.get()
                 )
             )
-            
-            if response.text:
-                # 응답에서 번역된 값 추출
-                match = re.search(r':\d*\s*"([^"]*)"', response.text)
+
+            translated_response = ""
+            if hasattr(response, "candidates") and response.candidates:
+                candidate = response.candidates[0]
+                if candidate.content and candidate.content.parts:
+                    translated_response = "".join(
+                        part.text for part in candidate.content.parts
+                        if hasattr(part, "text")
+                    )
+            elif hasattr(response, "text") and response.text:
+                translated_response = response.text
+
+            if translated_response:
+                match = re.search(r':\d*\s*"([^"]*)"', translated_response)
                 if match:
                     return match.group(1)
             
