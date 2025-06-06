@@ -122,8 +122,6 @@ class ValidationWindow(ctk.CTkToplevel):
         )
         self.stats_label.pack(anchor="w", pady=(5, 0))
 
-    import re
-
     def _is_paradox_tag(self, text):
         """
         Paradox 게임의 복합적인 태그 및 포맷팅 코드인지 확인합니다.
@@ -892,7 +890,9 @@ class ValidationWindow(ctk.CTkToplevel):
             translated_response = ""
             if hasattr(response, "candidates") and response.candidates:
                 candidate = response.candidates[0]
-                if candidate.content and candidate.content.parts:
+                if hasattr(candidate, "text") and candidate.text:
+                    translated_response = candidate.text
+                elif getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
                     translated_response = "".join(
                         part.text for part in candidate.content.parts
                         if hasattr(part, "text")
