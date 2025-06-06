@@ -28,13 +28,14 @@ class TranslatorEngine:
         self.target_lang_for_api = None
         self.prompt_template_str = None
         self.glossary_str_for_prompt = None
-        self.batch_size = 25
-        self.max_tokens = 8192
+        self.batch_size = 50
+        self.max_tokens = 65536
         self.delay_between_batches = 0.8
-        self.max_workers = 3
+        self.temperature = 0.5 
+        self.max_workers = 100
         self.keep_identifier = False
         self.check_internal_lang = False
-        self.split_large_files_threshold = 0
+        self.split_large_files_threshold = 1000
 
         self.translated_files_info_for_review = []
 
@@ -119,33 +120,6 @@ class TranslatorEngine:
         
         return has_error
 
-    def _check_line_for_yml_errors_engine(self, full_line):
-        """전체 라인에 대한 YML 문법 오류 검사."""
-        if not full_line or not full_line.strip():
-            return False
-
-        line_without_comment = full_line.split('#', 1)[0].rstrip()
-        if ':' not in line_without_comment:
-            return False
-
-        key_part, value_part = (p.strip() for p in line_without_comment.split(':', 1))
-        if not key_part or not value_part:
-            return False
-
-        if re.fullmatch(r'(true|false|null|\d+|\d*\.\d+)', value_part.lower()):
-            return False
-
-        pat_leading = self.compiled_regex_improper_leading_quote or re.compile(self.regex_error_improper_leading_quote_str)
-
-        # 따옴표 개수 불균형 확인
-        if value_part.count('"') == 0 or value_part.count('"') % 2 != 0:
-            return True
-
-        if pat_leading.search(value_part):
-            return True
-
-        return False
-
     def _check_line_for_yml_errors(self, full_line):
         """디버깅용 YML 오류 검사."""
         result = self._check_line_for_yml_errors_engine(full_line)
@@ -162,8 +136,10 @@ class TranslatorEngine:
 
         return orig_value.strip() == value_text.strip()
 
-    def _translate_batch_core(self, text_batch, temperature=0.2, retry=False):
+    def _translate_batch_core(self, text_batch, temperature=None, retry=False):
         batch_text_content = "\n".join([line.rstrip('\n') for line in text_batch])
+        if temperature is None:
+            temperature = self.temperature
         try:
             final_prompt = self.prompt_template_str.format(
                 source_lang_for_prompt=self.source_lang_for_api,
@@ -617,7 +593,7 @@ class TranslatorEngine:
                                   input_folder, output_folder,
                                   source_lang_api, target_lang_api,
                                   prompt_template, glossary_content,
-                                  batch_size_val, max_tokens_val, delay_val, max_workers_val,
+                                  batch_size_val, max_tokens_val, delay_val, temperature_val, max_workers_val,
                                   keep_identifier_val, check_internal_lang_val,
                                   split_large_files_threshold):
         if self.translation_thread and self.translation_thread.is_alive():
@@ -637,6 +613,7 @@ class TranslatorEngine:
         self.batch_size = batch_size_val
         self.max_tokens = max_tokens_val
         self.delay_between_batches = delay_val
+        self.temperature = temperature_val
         self.max_workers = max_workers_val
         self.keep_identifier = keep_identifier_val
         self.check_internal_lang = check_internal_lang_val

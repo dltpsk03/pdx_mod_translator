@@ -29,13 +29,14 @@ class SettingsManager:
                 app_vars["model_name_var"].set(config.get("model_name", self.default_model))
                 app_vars["source_lang_api_var"].set(config.get("source_lang_api", "English"))
                 app_vars["target_lang_api_var"].set(config.get("target_lang_api", "Korean"))
-                app_vars["batch_size_var"].set(config.get("batch_size", 25))
-                app_vars["max_workers_var"].set(config.get("max_workers", 3))
-                app_vars["max_tokens_var"].set(config.get("max_tokens", 8192))
+                app_vars["batch_size_var"].set(config.get("batch_size", 50))
+                app_vars["max_workers_var"].set(config.get("max_workers", 100))
+                app_vars["temperature_var"].set(config.get("temperature", 0.5))
+                app_vars["max_tokens_var"].set(config.get("max_tokens", 65536))
                 app_vars["delay_between_batches_var"].set(config.get("delay_between_batches", 0.8))
                 app_vars["keep_identifier_var"].set(config.get("keep_identifier", False))
                 app_vars["check_internal_lang_var"].set(config.get("check_internal_lang", False))
-                app_vars["split_threshold_var"].set(config.get("split_threshold", 0))
+                app_vars["split_threshold_var"].set(config.get("split_threshold", 1000))
 
                 prompt_str = config.get("custom_prompt", self.default_prompt_template)
                 if prompt_str != self.default_prompt_template:
@@ -65,6 +66,7 @@ class SettingsManager:
             "target_lang_api": app_vars["target_lang_api_var"].get(),
             "batch_size": app_vars["batch_size_var"].get(),
             "max_workers": app_vars["max_workers_var"].get(),
+            "temperature": app_vars["temperature_var"].get(),
             "max_tokens": app_vars["max_tokens_var"].get(),
             "delay_between_batches": app_vars["delay_between_batches_var"].get(),
             "keep_identifier": app_vars["keep_identifier_var"].get(),

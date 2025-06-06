@@ -4,7 +4,6 @@ import tkinter as tk
 from tkinter import filedialog, messagebox
 import codecs
 import os
-import difflib
 import re
 
 class ComparisonReviewWindow(ctk.CTkToplevel):
@@ -31,16 +30,25 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         self.current_original_lines = []
         self.current_translated_lines = []
         self.current_selected_pair_paths = None
+        self.detected_errors = {}  # 오류 정보 저장
 
         # UI 상태 변수들
         self.display_mode_var = tk.StringVar(value="all")
-        self.check_regex_errors_var_crw = tk.BooleanVar(value=False)
-        self.check_source_remnants_var_crw = tk.BooleanVar(value=False)
+        
+        # 새로운 오류 타입 체크박스 (기존 것 제거하고 새로 추가)
+        self.check_code_block_error_var = tk.BooleanVar(value=True)
+        self.check_unclosed_quote_error_var = tk.BooleanVar(value=True)
+        self.check_newline_error_var = tk.BooleanVar(value=True)
+        self.check_merged_line_error_var = tk.BooleanVar(value=True)
+        self.check_source_remnants_var = tk.BooleanVar(value=True)
 
         # 변수 추적 설정
         self.display_mode_var.trace_add("write", lambda *args: self.redisplay_content_if_loaded())
-        self.check_regex_errors_var_crw.trace_add("write", lambda *args: self.filter_and_update_file_listbox(redisplay_current_content=True))
-        self.check_source_remnants_var_crw.trace_add("write", lambda *args: self.filter_and_update_file_listbox(redisplay_current_content=True))
+        self.check_code_block_error_var.trace_add("write", lambda *args: self.filter_and_update_file_listbox(redisplay_current_content=True))
+        self.check_unclosed_quote_error_var.trace_add("write", lambda *args: self.filter_and_update_file_listbox(redisplay_current_content=True))
+        self.check_newline_error_var.trace_add("write", lambda *args: self.filter_and_update_file_listbox(redisplay_current_content=True))
+        self.check_merged_line_error_var.trace_add("write", lambda *args: self.filter_and_update_file_listbox(redisplay_current_content=True))
+        self.check_source_remnants_var.trace_add("write", lambda *args: self.filter_and_update_file_listbox(redisplay_current_content=True))
 
         # 테마에 맞는 색상 설정
         self._setup_colors()
@@ -68,7 +76,9 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                 'accent_orange': "#ff8c00",
                 'accent_red': "#d13438",
                 'border_color': "#4a4a4a",
-                'hover_color': "#404040"
+                'hover_color': "#404040",
+                'error_bg': "#4a1515",
+                'error_border': "#d13438"
             }
         else:
             self.colors = {
@@ -82,7 +92,9 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                 'accent_orange': "#ff8c00",
                 'accent_red': "#d13438",
                 'border_color': "#cccccc",
-                'hover_color': "#e5e5e5"
+                'hover_color': "#e5e5e5",
+                'error_bg': "#ffe5e5",
+                'error_border': "#d13438"
             }
 
     def _create_modern_ui(self):
@@ -114,14 +126,14 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         # 제목 및 설명
         title_label = ctk.CTkLabel(
             header_content, 
-            text="📄 File Comparison & Review",
+            text=self.texts.get("comparison_review_window_title", "📄 File Comparison & Review"),
             font=ctk.CTkFont(size=24, weight="bold")
         )
         title_label.pack(anchor="w")
         
         subtitle_label = ctk.CTkLabel(
             header_content,
-            text="Compare original and translated files side by side",
+            text=self.texts.get("comparison_review_subtitle", "Compare original and translated files with advanced error detection"),
             font=ctk.CTkFont(size=14),
             text_color=self.colors['text_secondary']
         )
@@ -159,7 +171,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         # 패널 제목
         panel_title = ctk.CTkLabel(
             left_panel,
-            text="🗂️ File Pairs",
+            text="🗂️ " + self.texts.get("comparison_review_file_pairs", "File Pairs"),
             font=ctk.CTkFont(size=16, weight="bold")
         )
         panel_title.pack(anchor="w", padx=15, pady=(15, 10))
@@ -178,7 +190,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         # 필터 제목
         filter_title = ctk.CTkLabel(
             filter_frame,
-            text="🔍 Filters",
+            text="🔍 " + self.texts.get("comparison_review_filters", "Filters"),
             font=ctk.CTkFont(size=14, weight="bold")
         )
         filter_title.pack(anchor="w", padx=12, pady=(12, 8))
@@ -189,7 +201,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         
         mode_label = ctk.CTkLabel(
             display_section,
-            text="Display Mode:",
+            text=self.texts.get("comparison_review_display_mode", "Display Mode:"),
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=self.colors['text_secondary']
         )
@@ -201,7 +213,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         
         self.all_lines_radio = ctk.CTkRadioButton(
             radio_frame,
-            text="📄 Show All Lines",
+            text="📄 " + self.texts.get("comparison_review_display_all_lines", "Show All Lines"),
             variable=self.display_mode_var,
             value="all",
             font=ctk.CTkFont(size=11)
@@ -210,9 +222,9 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         
         self.diff_lines_radio = ctk.CTkRadioButton(
             radio_frame,
-            text="⚡ Differences Only",
+            text="⚡ " + self.texts.get("comparison_review_display_errors_only", "Errors Only"),
             variable=self.display_mode_var,
-            value="diff",
+            value="errors",
             font=ctk.CTkFont(size=11)
         )
         self.diff_lines_radio.pack(anchor="w", pady=2)
@@ -227,7 +239,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         
         error_label = ctk.CTkLabel(
             error_section,
-            text="Error Filters:",
+            text=self.texts.get("comparison_review_error_filters", "Error Type Filters:"),
             font=ctk.CTkFont(size=12, weight="bold"),
             text_color=self.colors['text_secondary']
         )
@@ -237,21 +249,45 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         checkbox_frame = ctk.CTkFrame(error_section, fg_color="transparent")
         checkbox_frame.pack(fill="x", pady=(5, 0))
         
-        self.regex_checkbox_crw = ctk.CTkCheckBox(
+        self.code_block_checkbox = ctk.CTkCheckBox(
             checkbox_frame,
-            text="🔧 Regex Errors",
-            variable=self.check_regex_errors_var_crw,
+            text="📦 " + self.texts.get("comparison_review_error_code_block", "Code Block Errors"),
+            variable=self.check_code_block_error_var,
             font=ctk.CTkFont(size=11)
         )
-        self.regex_checkbox_crw.pack(anchor="w", pady=2)
+        self.code_block_checkbox.pack(anchor="w", pady=2)
         
-        self.source_remnants_checkbox_crw = ctk.CTkCheckBox(
+        self.unclosed_quote_checkbox = ctk.CTkCheckBox(
             checkbox_frame,
-            text="🔄 Source Remnants",
-            variable=self.check_source_remnants_var_crw,
+            text="❝ " + self.texts.get("comparison_review_error_unclosed_quote", "Unclosed Quotes"),
+            variable=self.check_unclosed_quote_error_var,
             font=ctk.CTkFont(size=11)
         )
-        self.source_remnants_checkbox_crw.pack(anchor="w", pady=2)
+        self.unclosed_quote_checkbox.pack(anchor="w", pady=2)
+        
+        self.newline_checkbox = ctk.CTkCheckBox(
+            checkbox_frame,
+            text="↵ " + self.texts.get("comparison_review_error_newline", "Newline Errors"),
+            variable=self.check_newline_error_var,
+            font=ctk.CTkFont(size=11)
+        )
+        self.newline_checkbox.pack(anchor="w", pady=2)
+        
+        self.merged_line_checkbox = ctk.CTkCheckBox(
+            checkbox_frame,
+            text="🔗 " + self.texts.get("comparison_review_error_merged_line", "Merged Lines"),
+            variable=self.check_merged_line_error_var,
+            font=ctk.CTkFont(size=11)
+        )
+        self.merged_line_checkbox.pack(anchor="w", pady=2)
+        
+        self.source_remnants_checkbox = ctk.CTkCheckBox(
+            checkbox_frame,
+            text="🔄 " + self.texts.get("comparison_review_error_source_remnants", "Source Remnants"),
+            variable=self.check_source_remnants_var,
+            font=ctk.CTkFont(size=11)
+        )
+        self.source_remnants_checkbox.pack(anchor="w", pady=2)
 
     def _create_file_list_section(self, parent):
         """파일 목록 섹션 생성"""
@@ -261,7 +297,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         # 목록 제목
         list_title = ctk.CTkLabel(
             list_frame,
-            text="📋 File List",
+            text="📋 " + self.texts.get("comparison_review_file_list", "File List"),
             font=ctk.CTkFont(size=14, weight="bold")
         )
         list_title.pack(anchor="w", padx=12, pady=(12, 8))
@@ -320,7 +356,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         # 패널 제목
         panel_title = ctk.CTkLabel(
             right_panel,
-            text="📝 File Comparison",
+            text="📝 " + self.texts.get("comparison_review_file_comparison", "File Comparison"),
             font=ctk.CTkFont(size=16, weight="bold")
         )
         panel_title.pack(anchor="w", padx=15, pady=(15, 10))
@@ -345,7 +381,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         
         original_label = ctk.CTkLabel(
             original_header,
-            text="📄 Original File",
+            text="📄 " + self.texts.get("comparison_review_original_file", "Original File"),
             font=ctk.CTkFont(size=14, weight="bold"),
             text_color=self.colors['accent_blue']
         )
@@ -358,7 +394,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         
         translated_label = ctk.CTkLabel(
             translated_header,
-            text="🔄 Translated File (Editable)",
+            text="🔄 " + self.texts.get("comparison_review_translated_file", "Translated File (Editable)"),
             font=ctk.CTkFont(size=14, weight="bold"),
             text_color=self.colors['accent_green']
         )
@@ -403,7 +439,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         
         self.status_info_label = ctk.CTkLabel(
             status_frame,
-            text="💡 Select a file pair to begin comparison",
+            text="💡 " + self.texts.get("comparison_review_select_file", "Select a file pair to begin comparison"),
             font=ctk.CTkFont(size=12),
             text_color=self.colors['text_secondary']
         )
@@ -416,7 +452,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         # 저장 버튼
         self.save_button = ctk.CTkButton(
             button_frame,
-            text="💾 Save Changes",
+            text="💾 " + self.texts.get("comparison_review_save_changes_button", "Save Changes"),
             command=self.save_translated_file,
             font=ctk.CTkFont(size=12, weight="bold"),
             width=140,
@@ -428,7 +464,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         # 새로고침 버튼
         self.refresh_button = ctk.CTkButton(
             button_frame,
-            text="🔄 Refresh",
+            text="🔄 " + self.texts.get("review_refresh", "Refresh"),
             command=self._refresh_file_list,
             font=ctk.CTkFont(size=12),
             width=100,
@@ -460,11 +496,12 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
     def _update_stats(self):
         """통계 정보 업데이트"""
         total_files = len(self.all_file_pairs)
-        error_files = len([f for f in self.all_file_pairs if f["has_regex_error"] or f["has_source_error"]])
+        error_files = sum(1 for f in self.all_file_pairs if any(f.get(f"has_{err}_error", False) 
+                          for err in ["code_block", "unclosed_quote", "newline", "merged_line", "source"]))
         
-        stats_text = f"📊 {total_files} file pairs found"
+        stats_text = f"📊 {total_files} " + self.texts.get("comparison_review_file_pairs_found", "file pairs found")
         if error_files > 0:
-            stats_text += f" • ⚠️ {error_files} with errors"
+            stats_text += f" • ⚠️ {error_files} " + self.texts.get("comparison_review_with_errors", "with errors")
         
         self.stats_label.configure(text=stats_text)
 
@@ -489,6 +526,69 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                 )
             except Exception as e:
                 print(f"Scroll sync setup failed: {e}")
+
+    def _detect_translation_errors(self, original_line, translated_line, line_idx):
+        """번역 오류 검출 - 4가지 주요 패턴"""
+        errors = []
+        
+        # 키-값 쌍 추출
+        orig_match = re.match(r'^(\s*)([^:]+):\d*\s*"([^"]*)"', original_line)
+        trans_match = re.match(r'^(\s*)([^:]+):\d*\s*"([^"]*)"?', translated_line)
+        
+        if not orig_match:
+            return errors  # 원본이 키-값 형식이 아니면 검사 안함
+        
+        # 오류 1: 코드 블록 (```yml, ```yaml, ```) 검출
+        if translated_line.strip().startswith('```'):
+            errors.append("code_block")
+        
+        # 오류 2: 따옴표가 닫히지 않음
+        quote_count = translated_line.count('"')
+        if quote_count % 2 != 0:
+            errors.append("unclosed_quote")
+        elif trans_match and not translated_line.rstrip().endswith('"'):
+            # 값이 따옴표로 끝나지 않는 경우
+            errors.append("unclosed_quote")
+        
+        # 오류 3: 줄바꿈 문자 누락으로 인한 개행
+        if orig_match and trans_match:
+            orig_value = orig_match.group(3)
+            trans_value = trans_match.group(3) if trans_match else ""
+            
+            # 원본에 \n이 있는데 번역본에서 실제 개행이 발생한 경우
+            orig_newline_count = orig_value.count('\\n')
+            if orig_newline_count > 0 and '\n' in translated_line:
+                errors.append("newline")
+        
+        # 오류 4: 다음 라인까지 한줄로 번역됨
+        # 번역된 라인에 두 개 이상의 키-값 쌍이 있는지 확인
+        key_value_pattern = r'[^:]+:\d*\s*"[^"]*"'
+        matches = re.findall(key_value_pattern, translated_line)
+        if len(matches) > 1:
+            errors.append("merged_line")
+        
+        return errors
+
+    def _check_source_remnants_optimized(self, value_text, original_value):
+        """원본과 동일한 값이 번역 결과에 남아있는지 확인"""
+        if value_text is None or original_value is None:
+            return False
+        
+        # 완전히 동일한 경우
+        if value_text.strip() == original_value.strip():
+            return True
+        
+        # 영어 패턴 검출 (3글자 이상의 영어 단어가 2개 이상 연속)
+        if self.source_lang_api_name.lower() == "english":
+            pattern = r'\b[a-zA-Z]{3,}(?:\s+[a-zA-Z]{2,})+\b'
+            if re.search(pattern, value_text) and re.search(pattern, original_value):
+                # 번역 후에도 상당 부분의 영어가 남아있는지 확인
+                if len(value_text) > 10 and value_text.count(' ') > 2:
+                    english_words = re.findall(r'\b[a-zA-Z]{3,}\b', value_text)
+                    if len(english_words) > len(value_text.split()) * 0.5:
+                        return True
+        
+        return False
 
     def pre_scan_files_for_errors(self):
         """파일 오류 사전 스캔"""
@@ -545,7 +645,7 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                     )
                     
                     if not is_already_added:
-                        has_regex_error, has_source_error = self.scan_single_file_for_errors(
+                        error_info = self.scan_single_file_for_errors(
                             original_path_found, translated_full_path
                         )
                         
@@ -555,16 +655,17 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                         display_name = self._create_display_name(
                             original_path_found, translated_full_path,
                             rel_orig_display, rel_trans_display,
-                            has_regex_error, has_source_error
+                            error_info
                         )
                         
-                        self.all_file_pairs.append({
+                        file_pair_info = {
                             "original": original_path_found,
                             "translated": translated_full_path,
                             "display": display_name.strip(),
-                            "has_regex_error": has_regex_error,
-                            "has_source_error": has_source_error
-                        })
+                        }
+                        file_pair_info.update(error_info)
+                        
+                        self.all_file_pairs.append(file_pair_info)
         
         # 통계 업데이트
         self._update_stats()
@@ -608,16 +709,21 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
 
         return original_path_found
 
-    def _create_display_name(self, original_path, translated_path, rel_orig_display, rel_trans_display,
-                             has_regex_error, has_source_error):
+    def _create_display_name(self, original_path, translated_path, rel_orig_display, rel_trans_display, error_info):
         """파일 목록에 표시할 이름 생성"""
         orig_name = os.path.basename(original_path)
         trans_name = os.path.basename(translated_path)
 
         error_tags = []
-        if has_regex_error:
-            error_tags.append("🔧")
-        if has_source_error:
+        if error_info.get("has_code_block_error"):
+            error_tags.append("📦")
+        if error_info.get("has_unclosed_quote_error"):
+            error_tags.append("❝")
+        if error_info.get("has_newline_error"):
+            error_tags.append("↵")
+        if error_info.get("has_merged_line_error"):
+            error_tags.append("🔗")
+        if error_info.get("has_source_error"):
             error_tags.append("🔄")
 
         error_suffix = f" {' '.join(error_tags)}" if error_tags else ""
@@ -629,15 +735,21 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
 
     def scan_single_file_for_errors(self, original_path, translated_path):
         """단일 파일 쌍에 대해 오류 스캔"""
-        has_regex_error = False
-        has_source_error = False
+        error_info = {
+            "has_code_block_error": False,
+            "has_unclosed_quote_error": False,
+            "has_newline_error": False,
+            "has_merged_line_error": False,
+            "has_source_error": False,
+            "error_lines": {}  # 라인별 오류 정보 저장
+        }
 
         translated_lines = []
         try:
             with codecs.open(translated_path, 'r', encoding='utf-8-sig') as ft:
                 translated_lines = ft.readlines()
         except Exception:
-            return False, False
+            return error_info
 
         original_lines = []
         if os.path.exists(original_path):
@@ -648,26 +760,61 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
                 original_lines = []
 
         for idx, t_line in enumerate(translated_lines):
-            if self.translator_engine._check_line_for_yml_errors_engine(t_line):
-                has_regex_error = True
-            value = self.translator_engine._extract_yml_value(t_line)
-            if self.translator_engine._check_source_remnants_optimized(value, original_lines, idx):
-                has_source_error = True
-            if has_regex_error and has_source_error:
-                break
+            o_line = original_lines[idx] if idx < len(original_lines) else ""
+            
+            # 번역 오류 검출
+            errors = self._detect_translation_errors(o_line, t_line, idx)
+            
+            # 원본 언어 잔존 검사
+            orig_match = re.match(r'^(\s*)([^:]+):\d*\s*"([^"]*)"', o_line)
+            trans_match = re.match(r'^(\s*)([^:]+):\d*\s*"([^"]*)"?', t_line)
+            
+            if orig_match and trans_match:
+                orig_value = orig_match.group(3)
+                trans_value = trans_match.group(3) if trans_match else ""
+                if self._check_source_remnants_optimized(trans_value, orig_value):
+                    errors.append("source")
+            
+            # 오류 정보 저장
+            if errors:
+                error_info["error_lines"][idx] = errors
+                for error_type in errors:
+                    error_info[f"has_{error_type}_error"] = True
 
-        return has_regex_error, has_source_error
+        return error_info
 
     def filter_and_update_file_listbox(self, redisplay_current_content=False):
         """필터링 조건에 맞게 파일 목록 갱신"""
         self.file_pair_listbox.delete(0, tk.END)
         self.current_display_file_pairs_indices.clear()
 
+        # 필터 체크박스 상태 확인
+        filters_active = any([
+            self.check_code_block_error_var.get(),
+            self.check_unclosed_quote_error_var.get(),
+            self.check_newline_error_var.get(),
+            self.check_merged_line_error_var.get(),
+            self.check_source_remnants_var.get()
+        ])
+
         for idx, pair in enumerate(self.all_file_pairs):
-            if self.check_regex_errors_var_crw.get() and not pair["has_regex_error"]:
-                continue
-            if self.check_source_remnants_var_crw.get() and not pair["has_source_error"]:
-                continue
+            # 필터가 활성화된 경우, 선택된 오류 타입만 표시
+            if filters_active:
+                show_pair = False
+                if self.check_code_block_error_var.get() and pair.get("has_code_block_error"):
+                    show_pair = True
+                if self.check_unclosed_quote_error_var.get() and pair.get("has_unclosed_quote_error"):
+                    show_pair = True
+                if self.check_newline_error_var.get() and pair.get("has_newline_error"):
+                    show_pair = True
+                if self.check_merged_line_error_var.get() and pair.get("has_merged_line_error"):
+                    show_pair = True
+                if self.check_source_remnants_var.get() and pair.get("has_source_error"):
+                    show_pair = True
+                
+                if not show_pair:
+                    continue
+            
             self.current_display_file_pairs_indices.append(idx)
             self.file_pair_listbox.insert(tk.END, pair["display"])
 
@@ -696,89 +843,134 @@ class ComparisonReviewWindow(ctk.CTkToplevel):
         except Exception:
             pass
 
+        # 현재 파일의 오류 정보 저장
+        self.current_file_errors = pair.get("error_lines", {})
+        
         self._display_loaded_content()
+        
+        # 상태 업데이트
+        filename = os.path.basename(pair["translated"])
+        error_count = len(self.current_file_errors)
+        if error_count > 0:
+            status_text = f"⚠️ {filename} - {error_count} " + self.texts.get("comparison_review_errors_found", "errors found")
+        else:
+            status_text = f"✅ {filename} - " + self.texts.get("comparison_review_no_errors", "No errors detected")
+        self.status_info_label.configure(text=status_text)
 
+    # _display_loaded_content 메서드 완전 교체 (약 1100번 줄):
     def _display_loaded_content(self):
+        """로드된 콘텐츠 표시"""
         self.original_text_widget.configure(state="normal")
         self.translated_text_widget.configure(state="normal")
         self.original_text_widget.delete("1.0", tk.END)
         self.translated_text_widget.delete("1.0", tk.END)
 
         mode = self.display_mode_var.get()
-        if mode == "diff":
-            max_len = max(len(self.current_original_lines), len(self.current_translated_lines))
-            check_regex = self.check_regex_errors_var_crw.get()
-            check_source = self.check_source_remnants_var_crw.get()
-
-            for i in range(max_len):
-                o = self.current_original_lines[i] if i < len(self.current_original_lines) else ""
-                t = self.current_translated_lines[i] if i < len(self.current_translated_lines) else ""
-
-                show_line = False
-
-                if check_regex or check_source:
-                    regex_err = False
-                    source_err = False
-                    if i < len(self.current_translated_lines):
-                        if check_regex:
-                            regex_err = self.translator_engine._check_line_for_yml_errors_engine(t)
-                        if check_source:
-                            value = self.translator_engine._extract_yml_value(t)
-                            source_err = self.translator_engine._check_source_remnants_optimized(
-                                value, self.current_original_lines, i)
-
-                    if check_regex and not check_source:
-                        show_line = regex_err
-                    elif check_source and not check_regex:
-                        show_line = source_err
-                    else:  # both selected
-                        show_line = regex_err or source_err
-                else:
-                    if o.strip() != t.strip():
-                        show_line = True
-
-                if show_line:
-                    self.original_text_widget.insert(tk.END, o)
-                    self.translated_text_widget.insert(tk.END, t)
+        
+        if mode == "errors":
+            # 활성화된 필터 확인
+            active_filters = []
+            if self.check_code_block_error_var.get():
+                active_filters.append("code_block")
+            if self.check_unclosed_quote_error_var.get():
+                active_filters.append("unclosed_quote")
+            if self.check_newline_error_var.get():
+                active_filters.append("newline")
+            if self.check_merged_line_error_var.get():
+                active_filters.append("merged_line")
+            if self.check_source_remnants_var.get():
+                active_filters.append("source")
+            
+            # 오류가 있는 라인만 표시
+            for line_idx in sorted(self.current_file_errors.keys()):
+                errors = self.current_file_errors[line_idx]
+                
+                # 필터가 활성화되어 있고, 현재 라인의 오류가 필터와 매치되지 않으면 건너뛰기
+                if active_filters and not any(e in active_filters for e in errors):
+                    continue
+                
+                # 원본 라인 표시
+                if line_idx < len(self.current_original_lines):
+                    o_line = self.current_original_lines[line_idx]
+                    self.original_text_widget.insert(tk.END, f"Line {line_idx + 1}: {o_line}")
+                
+                # 번역 라인 표시 (오류 설명 포함)
+                if line_idx < len(self.current_translated_lines):
+                    t_line = self.current_translated_lines[line_idx]
+                    error_desc = self._get_error_description([e for e in errors if not active_filters or e in active_filters])
+                    self.translated_text_widget.insert(tk.END, f"Line {line_idx + 1} [{error_desc}]: {t_line}")
         else:
-            self.original_text_widget.insert("1.0", "".join(self.current_original_lines))
-            self.translated_text_widget.insert("1.0", "".join(self.current_translated_lines))
+            # 모든 라인 표시 모드
+            for idx, (o_line, t_line) in enumerate(zip(self.current_original_lines, self.current_translated_lines)):
+                self.original_text_widget.insert(tk.END, o_line)
+                
+                if idx in self.current_file_errors:
+                    errors = self.current_file_errors[idx]
+                    error_desc = self._get_error_description(errors)
+                    # 오류 라인 마커 추가
+                    self.translated_text_widget.insert(tk.END, f"⚠️ [{error_desc}] ", "error")
+                
+                self.translated_text_widget.insert(tk.END, t_line)
 
         self.original_text_widget.configure(state="disabled")
-        self.translated_text_widget.configure(state="normal")
+        
+        # 오류 태그 스타일 설정
+        if hasattr(self.translated_text_widget, '_textbox'):
+            self.translated_text_widget._textbox.tag_config("error", foreground=self.colors['accent_red'])
+
+    def _get_error_description(self, errors):
+        """오류 타입을 설명 문자열로 변환"""
+        error_names = {
+            "code_block": self.texts.get("comparison_review_error_code_block", "Code Block"),
+            "unclosed_quote": self.texts.get("comparison_review_error_unclosed_quote", "Unclosed Quote"),
+            "newline": self.texts.get("comparison_review_error_newline", "Newline"),
+            "merged_line": self.texts.get("comparison_review_error_merged_line", "Merged Line"),
+            "source": self.texts.get("comparison_review_error_source_lang", "Source Remnant")
+        }
+        return ", ".join(error_names.get(e, e) for e in errors)
 
     def redisplay_content_if_loaded(self):
+        """현재 로드된 콘텐츠 재표시"""
         if self.current_selected_pair_paths:
             self._display_loaded_content()
 
     def save_translated_file(self):
+        """번역 파일 저장"""
         if not self.current_selected_pair_paths:
             return
         new_text = self.translated_text_widget.get("1.0", tk.END)
         try:
             with codecs.open(self.current_selected_pair_paths[1], 'w', encoding='utf-8-sig') as ft:
                 ft.write(new_text)
-            messagebox.showinfo(self.texts.get("info_title", "Info"),
-                                self.texts.get("review_save_success", "Saved."))
+            messagebox.showinfo(
+                self.texts.get("info_title", "Info"),
+                self.texts.get("review_save_success", "Changes saved successfully.")
+            )
+            # 저장 후 오류 재스캔
+            self._refresh_file_list()
         except Exception as e:
             messagebox.showerror(self.texts.get("error_title", "Error"), str(e))
 
-    def _refresh_file_list(self):
-        self.pre_scan_files_for_errors()
-        self.filter_and_update_file_listbox()
-        self._update_stats()
-        self.redisplay_content_if_loaded()
-
     def update_language_texts(self, new_texts):
+        """언어 텍스트 업데이트"""
         self.texts = new_texts
         self.title(self.texts.get("comparison_review_window_title", "File Comparison and Review"))
-        self.all_lines_radio.configure(text=self.texts.get("comparison_review_display_all_lines", "Display All Lines"))
-        self.diff_lines_radio.configure(text=self.texts.get("comparison_review_display_diff_only", "Display Differences Only"))
-        self.regex_checkbox_crw.configure(text=self.texts.get("comparison_review_error_regex", "Regex Errors"))
-        self.source_remnants_checkbox_crw.configure(text=self.texts.get("comparison_review_error_source_lang", "Source Lang Remnants"))
-        self.save_button.configure(text=self.texts.get("comparison_review_save_changes_button", "Save Changes"))
+        
+        # 라디오 버튼
+        self.all_lines_radio.configure(text="📄 " + self.texts.get("comparison_review_display_all_lines", "Display All Lines"))
+        self.diff_lines_radio.configure(text="⚡ " + self.texts.get("comparison_review_display_errors_only", "Errors Only"))
+        
+        # 체크박스
+        self.code_block_checkbox.configure(text="📦 " + self.texts.get("comparison_review_error_code_block", "Code Block Errors"))
+        self.unclosed_quote_checkbox.configure(text="❝ " + self.texts.get("comparison_review_error_unclosed_quote", "Unclosed Quotes"))
+        self.newline_checkbox.configure(text="↵ " + self.texts.get("comparison_review_error_newline", "Newline Errors"))
+        self.merged_line_checkbox.configure(text="🔗 " + self.texts.get("comparison_review_error_merged_line", "Merged Lines"))
+        self.source_remnants_checkbox.configure(text="🔄 " + self.texts.get("comparison_review_error_source_remnants", "Source Remnants"))
+        
+        # 버튼
+        self.save_button.configure(text="💾 " + self.texts.get("comparison_review_save_changes_button", "Save Changes"))
         self.refresh_button.configure(text="🔄 " + self.texts.get("review_refresh", "Refresh"))
 
     def on_closing(self):
+        """창 닫기"""
         self.destroy()
-

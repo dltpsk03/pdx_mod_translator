@@ -40,13 +40,14 @@ class TranslationGUI(ctk.CTk):
         self.model_name_var = tk.StringVar()
         self.source_lang_for_api_var = tk.StringVar(value='English')
         self.target_lang_for_api_var = tk.StringVar(value='Korean')
-        self.batch_size_var = tk.IntVar(value=25)
-        self.max_workers_var = tk.IntVar(value=3)
-        self.max_tokens_var = tk.IntVar(value=8192)
+        self.batch_size_var = tk.IntVar(value=50)
+        self.max_workers_var = tk.IntVar(value=100)
+        self.max_tokens_var = tk.IntVar(value=65536)
         self.delay_between_batches_var = tk.DoubleVar(value=0.8)
+        self.temperature_var = tk.DoubleVar(value=0.5)
         self.keep_lang_def_unchanged_var = tk.BooleanVar(value=False)
         self.check_internal_lang_var = tk.BooleanVar(value=False)
-        self.split_threshold_var = tk.IntVar(value=5000)
+        self.split_threshold_var = tk.IntVar(value=1000)
 
         self.progress_text_var = tk.StringVar()
         self.glossary_files = []
@@ -56,7 +57,7 @@ class TranslationGUI(ctk.CTk):
         self.comparison_review_window_instance = None
 
         self.api_lang_options_en = ('English', 'Korean', 'Simplified Chinese', 'French', 'German', 'Spanish', 'Japanese', 'Portuguese', 'Russian', 'Turkish')
-        self.available_models = ['gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
+        self.available_models = ['gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash','gemini-2.5-pro-preview-06-05']
         if self.available_models:
             self.model_name_var.set(self.available_models[0])
 
@@ -145,6 +146,7 @@ Text to translate:
             "max_tokens_var": self.max_tokens_var,
             "delay_between_batches_var": self.delay_between_batches_var,
             "keep_identifier_var": self.keep_lang_def_unchanged_var,
+            "temperature_var": self.temperature_var,
             "check_internal_lang_var": self.check_internal_lang_var,
             "split_threshold_var": self.split_threshold_var,
         }
@@ -171,6 +173,7 @@ Text to translate:
             "max_tokens_var": self.max_tokens_var,
             "delay_between_batches_var": self.delay_between_batches_var,
             "keep_identifier_var": self.keep_lang_def_unchanged_var,
+            "temperature_var": self.temperature_var,
             "check_internal_lang_var": self.check_internal_lang_var,
             "split_threshold_var": self.split_threshold_var,
         }
@@ -311,7 +314,7 @@ Text to translate:
         
         validation_desc_label = ctk.CTkLabel(
             self.validation_main_frame,
-            text="Validate translated files for\nregex errors and source remnants",
+            text="retranslated files",
             font=ctk.CTkFont(size=11),
             text_color=("gray60", "gray60")
         )
@@ -632,6 +635,7 @@ Text to translate:
             batch_size_val=self.batch_size_var.get(),
             max_tokens_val=self.max_tokens_var.get(),
             delay_val=self.delay_between_batches_var.get(),
+            temperature_val=self.temperature_var.get(),
             max_workers_val=self.max_workers_var.get(),
             keep_identifier_val=self.keep_lang_def_unchanged_var.get(),
             check_internal_lang_val=self.check_internal_lang_var.get(),
@@ -672,6 +676,8 @@ Text to translate:
             messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('batch_delay_label')[:-1]})"); return False
         if not is_valid_int(self.split_threshold_var, 0, 200000): # 0은 분할 안함
             messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('split_threshold_label')[:-1]})"); return False
+        if not is_valid_float(self.temperature_var, 0.0, 2.0):
+            messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('temperature_label')[:-1]})"); return False
 
         current_prompt = self.prompt_glossary_panel.get_prompt_text() if hasattr(self, 'prompt_glossary_panel') else ""
         required_placeholders = ["{source_lang_for_prompt}", "{target_lang_for_prompt}", "{glossary_section}", "{batch_text}"]
@@ -683,6 +689,7 @@ Text to translate:
         return True
 
     def open_validation_window(self):
+    # 기존 validation_window.py가 이제 재번역 도구로 변경됨
         if self.validation_window_instance is None or not self.validation_window_instance.winfo_exists():
             output_dir = self.output_folder_var.get()
             if not output_dir or not os.path.isdir(output_dir):

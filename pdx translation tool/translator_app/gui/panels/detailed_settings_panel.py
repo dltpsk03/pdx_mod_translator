@@ -47,6 +47,17 @@ class DetailedSettingsPanel(ctk.CTkFrame):
         self.split_threshold_entry.grid(row=3, column=1, sticky="w", padx=(5,10), pady=5)
         self.split_threshold_tooltip = Tooltip(self.split_threshold_entry, "") # 툴팁 텍스트도 update_language
 
+        self.temperature_label = ctk.CTkLabel(self)  # 텍스트는 update_language()에서 설정
+        self.temperature_label.grid(row=3, column=2, sticky="w", padx=(20, 10), pady=5)
+        self.temperature_entry = ctk.CTkEntry(
+            self,
+            textvariable=self.main_app.temperature_var,
+            width=80,
+            justify='center'
+        )
+        self.temperature_entry.grid(row=3, column=3, sticky="w", padx=(5, 10), pady=5)
+        self.temperature_tooltip = Tooltip(self.temperature_entry, "")
+
         # Row 4 (기존 Row 3의 내용)
         self.lang_def_option_check_widget = ctk.CTkCheckBox(self, variable=self.main_app.keep_lang_def_unchanged_var, onvalue=True, offvalue=False)
         self.lang_def_option_check_widget.grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(10,5))
@@ -55,6 +66,7 @@ class DetailedSettingsPanel(ctk.CTkFrame):
         self.internal_lang_check_widget = ctk.CTkCheckBox(self, variable=self.main_app.check_internal_lang_var, onvalue=True, offvalue=False)
         self.internal_lang_check_widget.grid(row=4, column=2, columnspan=2, sticky="w", padx=10, pady=(10,5))
         self.internal_lang_check_tooltip = Tooltip(self.internal_lang_check_widget, "")
+
 
 
         self.update_language()
@@ -71,8 +83,11 @@ class DetailedSettingsPanel(ctk.CTkFrame):
         self.batch_delay_label_widget.configure(text=texts.get("batch_delay_label"))
         self.delay_spinbox_tooltip.update_text(texts.get("batch_delay_tooltip"))
         
-        self.split_threshold_label.configure(text=texts.get("split_threshold_label", "파일 분할 기준(줄):")) # LANGUAGES에 추가 필요
-        self.split_threshold_tooltip.update_text(texts.get("split_threshold_tooltip", "이 줄 수를 초과하는 파일은 분할하여 번역합니다. (0이면 분할 안 함)")) # LANGUAGES에 추가 필요
+        self.split_threshold_label.configure(text=texts.get("split_threshold_label"))
+        self.split_threshold_tooltip.update_text(texts.get("split_threshold_tooltip"))
+
+        self.temperature_label.configure(text=texts.get("temperature_label"))
+        self.temperature_tooltip.update_text(texts.get("temperature_tooltip"))
 
         self.lang_def_option_check_widget.configure(text=texts.get("keep_identifier_label"))
         self.lang_def_option_check_tooltip.update_text(texts.get("keep_identifier_tooltip"))
