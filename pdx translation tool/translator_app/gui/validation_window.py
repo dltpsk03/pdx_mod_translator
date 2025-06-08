@@ -122,8 +122,6 @@ class ValidationWindow(ctk.CTkToplevel):
         )
         self.stats_label.pack(anchor="w", pady=(5, 0))
 
-    import re
-
     def _is_paradox_tag(self, text):
         """
         Paradox 게임의 복합적인 태그 및 포맷팅 코드인지 확인합니다.
@@ -725,6 +723,8 @@ class ValidationWindow(ctk.CTkToplevel):
         retranslate_thread = threading.Thread(target=self._retranslate_worker, daemon=True)
         retranslate_thread.start()
 
+    # _retranslate_worker 메서드 내 수정 부분 (약 520번째 줄)
+
     def _retranslate_worker(self):
         """백그라운드 재번역 작업"""
         try:
@@ -767,25 +767,99 @@ class ValidationWindow(ctk.CTkToplevel):
                 with codecs.open(file_path, 'r', encoding='utf-8-sig') as f:
                     lines = f.readlines()
                 
-                # ── 배치 단위로 묶어서 처리 ──
-                if len(items) > batch_size:
-                    # batch_size 단위로 나누어서 처리
-                    for i in range(0, len(items), batch_size):
-                        batch_items = items[i:i+batch_size]
+                # 항목들을 배치로 처리
+                for i in range(0, len(items), batch_size):
+                    if self.stop_event.is_set():
+                        break
                         
-                        # ── 배치 내에서 각 항목 재번역 ──
+                    batch_items = items[i:i+batch_size]
+                    
+                    # 배치 텍스트 준비
+                    batch_lines = []
+                    for item in batch_items:
+                        # 원본 텍스트 사용
+                        key = item['key']
+                        original_value = item['original_value']
+                        batch_lines.append(f'{key}:0 "{original_value}"')
+                    
+                    batch_text = '\n'.join(batch_lines)
+                    
+                    # 프롬프트 생성
+                    prompt = prompt_template.format(
+                        source_lang_for_prompt=source_lang,
+                        target_lang_for_prompt=target_lang,
+                        glossary_section=glossary,
+                        batch_text=batch_text
+                    )
+                    
+                    try:
+                        # API 호출
+                        response = model.generate_content(
+                            prompt,
+                            generation_config=genai.types.GenerationConfig(
+                                temperature=temperature,
+                                max_output_tokens=max_tokens
+                            )
+                        )
+                        
+                        # 응답 처리
+                        translated_response = ""
+                        if hasattr(response, "candidates") and response.candidates:
+                            candidate = response.candidates[0]
+                            if hasattr(candidate, "content") and hasattr(candidate.content, "parts"):
+                                translated_response = "".join(
+                                    part.text for part in candidate.content.parts
+                                    if hasattr(part, "text")
+                                )
+                            elif hasattr(candidate, "text") and candidate.text:
+                                translated_response = candidate.text
+                        elif hasattr(response, "text") and response.text:
+                            translated_response = response.text
+                        
+                        if translated_response:
+                            # 번역된 라인들 파싱
+                            translated_lines = translated_response.split('\n')
+                            
+                            # 각 항목의 번역 결과 업데이트
+                            for j, item in enumerate(batch_items):
+                                if j < len(translated_lines):
+                                    # 번역된 값 추출
+                                    trans_line = translated_lines[j]
+                                    match = re.search(r':\d*\s*"([^"]*)"', trans_line)
+                                    if match:
+                                        new_translation = match.group(1)
+                                        
+                                        # 파일에서 해당 라인 업데이트
+                                        line_idx = item['translated_line']
+                                        if line_idx < len(lines):
+                                            old_line = lines[line_idx]
+                                            # 라인의 값 부분만 교체
+                                            line_match = re.match(r'^(\s*[^:]+:\d*\s*)"[^"]*"(.*)', old_line)
+                                            if line_match:
+                                                new_line = f'{line_match.group(1)}"{new_translation}"{line_match.group(2)}'
+                                                if not new_line.endswith('\n'):
+                                                    new_line += '\n'
+                                                lines[line_idx] = new_line
+                                
+                                # 진행률 업데이트
+                                processed += 1
+                                progress = processed / total_items
+                                self.after(0, lambda p=progress: self.progress_bar.set(p))
+                                self.after(0, lambda pr=processed, t=total_items: self.progress_label.configure(
+                                    text=f"{pr}/{t}"
+                                ))
+                    
+                    except Exception as e:
+                        print(f"Error in batch retranslation: {e}")
+                        # 개별 항목으로 재시도
                         for item in batch_items:
                             if self.stop_event.is_set():
                                 break
-                            
                             try:
-                                # 재번역 수행
                                 new_translation = self._retranslate_single_item(
                                     item, model, prompt_template, glossary, source_lang, target_lang
                                 )
-                                
                                 if new_translation:
-                                    # 파일에서 해당 라인 업데이트
                                     line_idx = item['translated_line']
                                     if line_idx < len(lines):
                                         old_line = lines[line_idx]
@@ -795,56 +869,19 @@ class ValidationWindow(ctk.CTkToplevel):
                                             if not new_line.endswith('\n'):
                                                 new_line += '\n'
                                             lines[line_idx] = new_line
+                            except Exception as e2:
+                                print(f"Error retranslating individual item: {e2}")
                             
-                            except Exception as e:
-                                print(f"Error retranslating item: {e}")
-                            
-                            # 진행률 업데이트
                             processed += 1
                             progress = processed / total_items
                             self.after(0, lambda p=progress: self.progress_bar.set(p))
                             self.after(0, lambda pr=processed, t=total_items: self.progress_label.configure(
                                 text=f"{pr}/{t}"
                             ))
-                        
-                        # ── 배치 간 대기 ──
-                        if i + batch_size < len(items) and not self.stop_event.is_set():
-                            time.sleep(delay_between_batches)
-                
-                else:
-                    # items 개수가 batch_size 이하라면 한 번에 처리
-                    for item in items:
-                        if self.stop_event.is_set():
-                            break
-                        
-                        try:
-                            # 재번역 수행
-                            new_translation = self._retranslate_single_item(
-                                item, model, prompt_template, glossary, source_lang, target_lang
-                            )
-                            
-                            if new_translation:
-                                # 파일에서 해당 라인 업데이트
-                                line_idx = item['translated_line']
-                                if line_idx < len(lines):
-                                    old_line = lines[line_idx]
-                                    match = re.match(r'^(\s*[^:]+:\d*\s*)"[^"]*"(.*)', old_line)
-                                    if match:
-                                        new_line = f'{match.group(1)}"{new_translation}"{match.group(2)}'
-                                        if not new_line.endswith('\n'):
-                                            new_line += '\n'
-                                        lines[line_idx] = new_line
-                            
-                        except Exception as e:
-                            print(f"Error retranslating item: {e}")
-                        
-                        # 진행률 업데이트
-                        processed += 1
-                        progress = processed / total_items
-                        self.after(0, lambda p=progress: self.progress_bar.set(p))
-                        self.after(0, lambda pr=processed, t=total_items: self.progress_label.configure(
-                            text=f"{pr}/{t}"
-                        ))
+                    
+                    # 배치 간 대기
+                    if i + batch_size < len(items) and not self.stop_event.is_set():
+                        time.sleep(delay_between_batches)
                 
                 # 파일 저장
                 if not self.stop_event.is_set():
@@ -853,10 +890,7 @@ class ValidationWindow(ctk.CTkToplevel):
             
             # 완료
             self.after(0, self._retranslation_complete)
-
             
-            
-
         except Exception as e:
             self.after(0, lambda: messagebox.showerror(
                 self.texts.get("error_title", "Error"),
@@ -892,7 +926,9 @@ class ValidationWindow(ctk.CTkToplevel):
             translated_response = ""
             if hasattr(response, "candidates") and response.candidates:
                 candidate = response.candidates[0]
-                if candidate.content and candidate.content.parts:
+                if hasattr(candidate, "text") and candidate.text:
+                    translated_response = candidate.text
+                elif getattr(candidate, "content", None) and getattr(candidate.content, "parts", None):
                     translated_response = "".join(
                         part.text for part in candidate.content.parts
                         if hasattr(part, "text")

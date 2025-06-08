@@ -86,11 +86,66 @@ class TranslatorEngine:
         return None
 
 
+    def _check_line_for_yml_errors_engine(self, full_line):
+        """YML 라인의 정규식 오류 검사 - 개선된 버전"""
+        if not full_line or not full_line.strip():
+            return False
+        
+        # 주석 라인은 검사하지 않음
+        if full_line.strip().startswith('#'):
+            return False
+        
+        # 키-값 쌍이 아닌 라인은 검사하지 않음
+        if ':' not in full_line:
+            return False
+        
+        # 주석 제거 (따옴표 뒤의 주석 처리)
+        # 먼저 값 부분을 찾고, 값이 끝나는 따옴표 이후의 주석만 제거
+        key_value_match = re.match(r'^(\s*[^:]+:\d*\s*"[^"]*")(.*)', full_line)
+        if key_value_match:
+            # 키-값 부분과 나머지 부분 분리
+            key_value_part = key_value_match.group(1)
+            remainder = key_value_match.group(2)
+            
+            # 나머지 부분에서 주석 찾기
+            comment_match = re.search(r'(\s*#.*)', remainder)
+            if comment_match:
+                # 주석 제거
+                full_line = key_value_part + remainder[:comment_match.start()]
+        
+        # 패턴 1: 올바른 YML 값 패턴 검사
+        # 이 패턴이 매치되면 오류
+        yml_pattern = r'^[^"]*"([^"\\]|\\.)*$'
+        if re.match(yml_pattern, full_line):
+            return True
+        
+        # 패턴 2: 부적절한 선행 따옴표 검사
+        # 값 부분만 추출하여 검사
+        value_match = re.search(r':\s*"(.*?)"?\s*$', full_line)
+        if value_match:
+            value_text = value_match.group(1)
+            # 값 내부에서 부적절한 따옴표 찾기
+            improper_quote_pattern = r'(?<!^)(?<![\r\n\t ])"(?=[A-Za-z])'
+            if re.search(improper_quote_pattern, value_text):
+                return True
+        
+        # 추가 검사: 따옴표가 제대로 닫히지 않은 경우
+        quote_count = full_line.count('"')
+        if quote_count % 2 != 0:
+            return True
+        
+        # 추가 검사: 값이 따옴표로 시작하지만 끝나지 않는 경우
+        if re.search(r':\s*"[^"]*$', full_line) and not re.search(r':\s*"[^"]*"\s*(?:#.*)?$', full_line):
+            return True
+        
+        return False
+
+
     def _check_regex_errors_optimized(self, value_text):
-        """정규식 오류 검사 - 수정된 버전"""
+        """정규식 오류 검사 - 개선된 버전"""
         if not value_text:
             return False
-            
+        
         # 캐시 확인
         cache_key = hash(value_text)
         if cache_key in self._regex_error_cache:
@@ -99,18 +154,33 @@ class TranslatorEngine:
         has_error = False
         
         try:
-            # 패턴 1: ^[^"]*"([^"\\]|\\.)*$ - 매치되면 오류
+            # 전체 라인 형태로 만들어서 검사
+            full_line = f'key:0 "{value_text}"'
+            
+            # 패턴 1: 올바른 YML 값 패턴 - 매치되면 오류
             yml_pattern = r'^[^"]*"([^"\\]|\\.)*$'
-            full_line = f'key: "{value_text}"'
             if re.match(yml_pattern, full_line):
                 has_error = True
             
-            # 패턴 2: (?<![\r\n\t  ])"(?=[A-Za-z]) - 매치되면 오류
+            # 패턴 2: 값 내부의 부적절한 따옴표
             if not has_error:
-                improper_quote_pattern = r'(?<![\r\n\t  ])"(?=[A-Za-z])'
+                # 값 내부에서만 검사 (시작 부분 제외)
+                improper_quote_pattern = r'(?<!^)"(?=[A-Za-z])'
                 if re.search(improper_quote_pattern, value_text):
                     has_error = True
-                    
+            
+            # 패턴 3: 이스케이프되지 않은 따옴표
+            if not has_error:
+                # 이스케이프되지 않은 따옴표 찾기
+                unescaped_quote_pattern = r'(?<!\\)"'
+                matches = list(re.finditer(unescaped_quote_pattern, value_text))
+                # 시작과 끝 제외하고 중간에 따옴표가 있으면 오류
+                if len(matches) > 0:
+                    for match in matches:
+                        if 0 < match.start() < len(value_text) - 1:
+                            has_error = True
+                            break
+                            
         except re.error:
             has_error = False
         
@@ -124,6 +194,7 @@ class TranslatorEngine:
         """디버깅용 YML 오류 검사."""
         result = self._check_line_for_yml_errors_engine(full_line)
         return result
+    
 
     def _check_source_remnants_optimized(self, value_text, original_lines, line_index):
         """원본과 동일한 값이 번역 결과에 남아있는지 확인."""
