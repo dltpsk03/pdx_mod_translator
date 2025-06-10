@@ -40,22 +40,61 @@ class DetailedSettingsPanel(ctk.CTkFrame):
         self.delay_entry_widget.grid(row=2, column=3, sticky="w", padx=(5,10), pady=5)
         self.delay_spinbox_tooltip = Tooltip(self.delay_entry_widget, "")
 
-        # Row 3 - 파일 분할 임계값 추가
-        self.split_threshold_label = ctk.CTkLabel(self) # 텍스트는 update_language에서 설정
+        # Row 3 - 파일 분할 임계값과 온도
+        self.split_threshold_label = ctk.CTkLabel(self)
         self.split_threshold_label.grid(row=3, column=0, sticky="w", padx=10, pady=5)
         self.split_threshold_entry = ctk.CTkEntry(self, textvariable=self.main_app.split_threshold_var, width=80, justify='center')
         self.split_threshold_entry.grid(row=3, column=1, sticky="w", padx=(5,10), pady=5)
-        self.split_threshold_tooltip = Tooltip(self.split_threshold_entry, "") # 툴팁 텍스트도 update_language
+        self.split_threshold_tooltip = Tooltip(self.split_threshold_entry, "")
 
-        # Row 4 (기존 Row 3의 내용)
+        self.temperature_label = ctk.CTkLabel(self)
+        self.temperature_label.grid(row=3, column=2, sticky="w", padx=(20, 10), pady=5)
+        self.temperature_entry = ctk.CTkEntry(
+            self,
+            textvariable=self.main_app.temperature_var,
+            width=80,
+            justify='center'
+        )
+        self.temperature_entry.grid(row=3, column=3, sticky="w", padx=(5, 10), pady=5)
+        self.temperature_tooltip = Tooltip(self.temperature_entry, "")
+
+        # Row 4 - 재시도 횟수 추가
+        self.max_retries_label = ctk.CTkLabel(self)
+        self.max_retries_label.grid(row=4, column=0, sticky="w", padx=10, pady=5)
+        self.max_retries_entry = ctk.CTkEntry(self, textvariable=self.main_app.max_retries_var, width=80, justify='center')
+        self.max_retries_entry.grid(row=4, column=1, sticky="w", padx=(5,10), pady=5)
+        self.max_retries_tooltip = Tooltip(self.max_retries_entry, "")
+
+        # Row 5 - 체크박스들
         self.lang_def_option_check_widget = ctk.CTkCheckBox(self, variable=self.main_app.keep_lang_def_unchanged_var, onvalue=True, offvalue=False)
-        self.lang_def_option_check_widget.grid(row=4, column=0, columnspan=2, sticky="w", padx=10, pady=(10,5))
+        self.lang_def_option_check_widget.grid(row=5, column=0, columnspan=2, sticky="w", padx=10, pady=(10,5))
         self.lang_def_option_check_tooltip = Tooltip(self.lang_def_option_check_widget, "")
 
         self.internal_lang_check_widget = ctk.CTkCheckBox(self, variable=self.main_app.check_internal_lang_var, onvalue=True, offvalue=False)
-        self.internal_lang_check_widget.grid(row=4, column=2, columnspan=2, sticky="w", padx=10, pady=(10,5))
+        self.internal_lang_check_widget.grid(row=5, column=2, columnspan=2, sticky="w", padx=10, pady=(10,5))
         self.internal_lang_check_tooltip = Tooltip(self.internal_lang_check_widget, "")
 
+        # Row 6 - 기번역 건너뛰기
+        self.skip_translated_check = ctk.CTkCheckBox(
+            self, 
+            variable=self.main_app.skip_already_translated_var,
+            onvalue=True, 
+            offvalue=False
+        )
+        self.skip_translated_check.grid(row=6, column=0, columnspan=4, sticky="w", padx=10, pady=(10,5))
+        self.skip_translated_tooltip = Tooltip(self.skip_translated_check, "")
+
+        self.backup_check = ctk.CTkCheckBox(
+            self,
+            # text=get_text(...) 대신 빈 텍스트로 초기화
+            text="", 
+            variable=self.main_app.enable_backup_var,
+            onvalue=True,
+            offvalue=False
+        )
+        self.backup_check.grid(row=7, column=0, columnspan=4, sticky="w", padx=10, pady=(10,5))
+        # Tooltip도 빈 텍스트로 초기화
+        self.backup_tooltip = Tooltip(self.backup_check, "") 
 
         self.update_language()
 
@@ -71,10 +110,22 @@ class DetailedSettingsPanel(ctk.CTkFrame):
         self.batch_delay_label_widget.configure(text=texts.get("batch_delay_label"))
         self.delay_spinbox_tooltip.update_text(texts.get("batch_delay_tooltip"))
         
-        self.split_threshold_label.configure(text=texts.get("split_threshold_label", "파일 분할 기준(줄):")) # LANGUAGES에 추가 필요
-        self.split_threshold_tooltip.update_text(texts.get("split_threshold_tooltip", "이 줄 수를 초과하는 파일은 분할하여 번역합니다. (0이면 분할 안 함)")) # LANGUAGES에 추가 필요
+        self.split_threshold_label.configure(text=texts.get("split_threshold_label"))
+        self.split_threshold_tooltip.update_text(texts.get("split_threshold_tooltip"))
+
+        self.temperature_label.configure(text=texts.get("temperature_label"))
+        self.temperature_tooltip.update_text(texts.get("temperature_tooltip"))
+
+        self.max_retries_label.configure(text=texts.get("max_retries_label"))
+        self.max_retries_tooltip.update_text(texts.get("max_retries_tooltip"))
 
         self.lang_def_option_check_widget.configure(text=texts.get("keep_identifier_label"))
         self.lang_def_option_check_tooltip.update_text(texts.get("keep_identifier_tooltip"))
         self.internal_lang_check_widget.configure(text=texts.get("check_internal_lang_label"))
         self.internal_lang_check_tooltip.update_text(texts.get("check_internal_lang_tooltip"))
+        
+        self.skip_translated_check.configure(text=texts.get("skip_already_translated_label"))
+        self.skip_translated_tooltip.update_text(texts.get("skip_already_translated_tooltip"))
+
+        self.backup_check.configure(text=texts.get("enable_backup_label"))
+        self.backup_tooltip.update_text(texts.get("enable_backup_tooltip"))
