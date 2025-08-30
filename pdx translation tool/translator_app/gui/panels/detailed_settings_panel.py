@@ -40,23 +40,12 @@ class DetailedSettingsPanel(ctk.CTkFrame):
         self.delay_entry_widget.grid(row=2, column=3, sticky="w", padx=(5,10), pady=5)
         self.delay_spinbox_tooltip = Tooltip(self.delay_entry_widget, "")
 
-        # Row 3 - 파일 분할 임계값과 온도
+        # Row 3 - 파일 분할 임계값
         self.split_threshold_label = ctk.CTkLabel(self)
         self.split_threshold_label.grid(row=3, column=0, sticky="w", padx=10, pady=5)
         self.split_threshold_entry = ctk.CTkEntry(self, textvariable=self.main_app.split_threshold_var, width=80, justify='center')
         self.split_threshold_entry.grid(row=3, column=1, sticky="w", padx=(5,10), pady=5)
         self.split_threshold_tooltip = Tooltip(self.split_threshold_entry, "")
-
-        self.temperature_label = ctk.CTkLabel(self)
-        self.temperature_label.grid(row=3, column=2, sticky="w", padx=(20, 10), pady=5)
-        self.temperature_entry = ctk.CTkEntry(
-            self,
-            textvariable=self.main_app.temperature_var,
-            width=80,
-            justify='center'
-        )
-        self.temperature_entry.grid(row=3, column=3, sticky="w", padx=(5, 10), pady=5)
-        self.temperature_tooltip = Tooltip(self.temperature_entry, "")
 
         # Row 4 - 재시도 횟수 추가
         self.max_retries_label = ctk.CTkLabel(self)
@@ -112,9 +101,6 @@ class DetailedSettingsPanel(ctk.CTkFrame):
         
         self.split_threshold_label.configure(text=texts.get("split_threshold_label"))
         self.split_threshold_tooltip.update_text(texts.get("split_threshold_tooltip"))
-
-        self.temperature_label.configure(text=texts.get("temperature_label"))
-        self.temperature_tooltip.update_text(texts.get("temperature_tooltip"))
 
         self.max_retries_label.configure(text=texts.get("max_retries_label"))
         self.max_retries_tooltip.update_text(texts.get("max_retries_tooltip"))

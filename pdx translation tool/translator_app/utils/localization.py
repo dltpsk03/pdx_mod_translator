@@ -39,7 +39,12 @@ LANGUAGES = {
         # ======================================================================
         # 2. 메인 창 UI (Main Window UI)
         # ======================================================================
-        # 2.1. UI 설정 (UI Settings)
+        # 2.1. 탭 제목 (Tab Titles)
+        "basic_settings_tab": "⚙️ 기본 설정",
+        "advanced_settings_tab": "🔧 고급 설정", 
+        "prompt_glossary_tab": "📝 프롬프트/용어집",
+        
+        # 2.2. UI 설정 (UI Settings)
         "ui_settings_frame_title": "UI 설정",
         "ui_lang_label": "UI 언어:",
         "ui_lang_tooltip": "프로그램 인터페이스의 표시 언어를 변경합니다.",
@@ -51,12 +56,16 @@ LANGUAGES = {
 
         # 2.2. API 및 모델 설정 (API & Model Settings)
         "api_settings_frame": "API 및 모델 설정",
-        "api_key_label": "Gemini API 키:",
-        "api_key_tooltip": "Google AI Studio에서 발급받은 Gemini API 키를 입력하세요.\n예: AIzaSy...",
+        "api_key_label": "API 키:",
+        "api_key_tooltip": "선택한 API 제공자의 키를 입력해주세요.\nGemini: Google AI Studio에서 발급\nClaude: Anthropic Console에서 발급\nOpenAI: OpenAI Platform에서 발급",
         "model_label": "번역 모델:",
-        "model_tooltip": "번역에 사용할 Gemini 모델을 선택합니다.\n모델마다 성능과 비용이 다를 수 있습니다.",
+        "model_tooltip": "번역에 사용할 AI 모델을 선택합니다.\n모델마다 성능과 비용이 다를 수 있습니다.",
         "temperature_label": "템퍼러쳐:",
         "temperature_tooltip": "번역의 무작위성 제어 (0.0=일관적, 1.0=창의적)",
+        "api_provider_label": "API 제공자:",
+        "api_provider_tooltip": "번역에 사용할 AI API 제공자를 선택하세요 (Google Gemini, Anthropic Claude, OpenAI GPT)",
+        "test_connection_button": "연결 테스트",
+        "test_connection_tooltip": "현재 API 설정으로 연결 테스트를 수행합니다",
 
         # 2.3. 폴더 설정 (Folder Settings)
         "folder_frame": "폴더 선택",
@@ -124,6 +133,23 @@ LANGUAGES = {
         "glossary_error_not_found": "파일 없음",
         "glossary_error_empty": "빈 파일",
         "glossary_error_no_valid": "유효 항목 없음",
+
+        # 2.6.1. 오류 검증 패널 (Error Correction Panel)
+        "error_correction_title": "스마트 오류 검증 및 품질 제어",
+        "validation_level": "검증 레벨:",
+        "validation_level_tooltip": "검증 엄격성 vs 속도 제어:\n• Off: 최고 속도 (검증 없음)\n• Basic: 키 + YAML 검증만\n• Standard: 완전 검증 (권장)\n• Strict: 최대 품질",
+        "auto_threshold": "자동 엄격 모드 임계값:",
+        "auto_fix_options": "자동 수정 옵션",
+        "fix_yaml_syntax": "YAML 구문 오류 수정",
+        "preserve_paradox_format": "Paradox 게임 형식 보존 (키, 변수, 태그)",
+        "remove_duplicates": "중복 항목 제거",
+        "fix_incomplete_translations": "불완전한 번역 수정",
+        "duplicate_strategy": "중복 처리 전략:",
+        "duplicate_strategy_tooltip": "중복 항목 처리 방법",
+        "quality_thresholds": "품질 임계값",
+        "min_length_ratio": "최소 길이 비율:",
+        "max_length_ratio": "최대 길이 비율:",
+        "correction_stats": "실시간 통계",
 
         # 2.7. 제어판 및 진행상황 (Control Panel & Progress)
         "translate_button": "번역 시작",
@@ -201,13 +227,40 @@ LANGUAGES = {
         "log_retrying_missing_lines": "누락된 {0}개 라인 재번역 시도 중... (시도 {1}/3)",
 
         # 3.2. 오류/경고 로그 (Error/Warning Logs)
-        "error_api_key_needed": "Gemini API 키를 입력해야 합니다.",
-        "error_model_needed": "번역 모델을 선택해야 합니다.",
-        "error_input_folder_invalid": "올바른 입력 폴더를 선택해야 합니다.",
-        "error_output_folder_needed": "출력 폴더를 선택해야 합니다.",
-        "error_numeric_setting_invalid": "숫자 설정값이 올바르지 않습니다. 유효한 숫자를 입력해주세요.",
-        "error_prompt_missing_placeholders": "프롬프트에 필수 플레이스홀더가 누락되었습니다: {0}",
-        "error_create_output_folder": "출력 폴더를 만들 수 없습니다: {0}",
+        "error_api_key_needed": "API 키를 입력해주세요. API 제공자를 선택하고 해당하는 API 키를 입력하세요.",
+        "error_model_needed": "번역 모델을 선택해주세요. API 제공자에 맞는 모델을 선택하세요.",
+        "error_input_folder_invalid": "번역할 파일이 있는 폴더를 선택해주세요. 폴더에 YAML 파일이 있는지 확인하세요.",
+        "error_output_folder_needed": "번역된 파일을 저장할 폴더를 선택해주세요.",
+        "error_numeric_setting_invalid": "숫자 설정이 올바르지 않습니다. 0보다 큰 숫자를 입력해주세요.",
+        "error_prompt_missing_placeholders": "프롬프트에 필수 내용이 누락되었습니다: {0}. 기본 프롬프트로 복원하시겠습니까?",
+        "error_create_output_folder": "저장 폴더를 만들 수 없습니다: {0}. 폴더 경로와 권한을 확인해주세요.",
+        
+        # 3.3. 사용자 친화적 오류 메시지들
+        "error_file_too_large": "파일이 너무 큽니다 ({0:.1f}MB). 더 작은 파일을 사용하거나 파일을 분할해주세요.",
+        "error_memory_insufficient": "메모리가 부족합니다. 다른 프로그램을 종료하거나 더 작은 파일로 작업해주세요.",
+        "error_internet_connection": "인터넷 연결을 확인해주세요. API 서버에 접속할 수 없습니다.",
+        "error_api_rate_limit": "API 사용 한도에 도달했습니다. 잠시 후 다시 시도해주세요.",
+        "error_api_invalid_key": "API 키가 올바르지 않습니다. API 키를 다시 확인해주세요.",
+        "error_file_corrupted": "파일이 손상되었거나 올바른 형식이 아닙니다. 파일을 확인해주세요.",
+        "error_yaml_format": "YAML 파일 형식에 오류가 있습니다. 따옴표나 들여쓰기를 확인해주세요.",
+        "error_file_access": "파일에 접근할 수 없습니다. 파일이 다른 프로그램에서 사용 중인지 확인해주세요.",
+        "error_disk_space": "저장 공간이 부족합니다. 디스크 공간을 확보해주세요.",
+        "error_unexpected": "예상치 못한 오류가 발생했습니다. 프로그램을 재시작해보세요.",
+        
+        # 3.4. 도움말 및 안내 메시지들
+        "help_first_time": "처음 사용하시나요? 1) API 키 입력 → 2) 폴더 선택 → 3) 언어 설정 → 4) 번역 시작 순서로 진행하세요.",
+        "help_api_setup": "API 키가 필요합니다. Google Gemini, Anthropic Claude, 또는 OpenAI 중 하나를 선택하여 API 키를 입력하세요.",
+        "help_slow_translation": "번역이 느리다면 배치 크기를 늘리거나 동시 파일 수를 조정해보세요.",
+        "help_quality_issues": "번역 품질에 문제가 있다면 검증 레벨을 높이거나 프롬프트를 수정해보세요.",
+        "help_memory_usage": "메모리 사용량이 높다면 동시 처리 파일 수를 줄이거나 더 작은 배치 크기를 사용하세요.",
+        
+        # 3.5. 진행 상황 및 상태 메시지들
+        "status_checking_files": "파일을 확인하고 있습니다...",
+        "status_validating_settings": "설정을 확인하고 있습니다...",
+        "status_connecting_api": "API에 연결하고 있습니다...",
+        "status_processing_file": "파일을 처리하고 있습니다: {0}",
+        "status_saving_results": "결과를 저장하고 있습니다...",
+        "status_cleaning_up": "정리 작업을 수행하고 있습니다...",
         "warn_already_translating": "이미 번역 작업이 진행 중입니다. 기다려 주십시오.",
         "warn_already_validating": "이미 검증 작업이 진행 중입니다. 기다려 주십시오.",
         "warn_already_processing": "다른 작업(번역 또는 검증)이 이미 진행 중입니다.",
@@ -422,7 +475,12 @@ LANGUAGES = {
         # ======================================================================
         # 2. Main Window UI
         # ======================================================================
-        # 2.1. UI Settings
+        # 2.1. Tab Titles
+        "basic_settings_tab": "⚙️ Basic Settings",
+        "advanced_settings_tab": "🔧 Advanced Settings", 
+        "prompt_glossary_tab": "📝 Prompt/Glossary",
+        
+        # 2.2. UI Settings
         "ui_settings_frame_title": "UI Settings",
         "ui_lang_label": "UI Language:",
         "ui_lang_tooltip": "Changes the display language of the program interface.",
@@ -434,12 +492,16 @@ LANGUAGES = {
 
         # 2.2. API & Model Settings
         "api_settings_frame": "API and Model Settings",
-        "api_key_label": "Gemini API Key:",
-        "api_key_tooltip": "Enter the Gemini API key issued from Google AI Studio.\nExample: AIzaSy...",
+        "api_provider_label": "API Provider:",
+        "api_provider_tooltip": "Select AI API provider (Google Gemini, Anthropic Claude, OpenAI GPT)",
+        "api_key_label": "API Key:",
+        "api_key_tooltip": "Enter API key for selected provider.\nGemini: From Google AI Studio\nClaude: From Anthropic Console\nOpenAI: From OpenAI Platform",
         "model_label": "Translation Model:",
-        "model_tooltip": "Select the Gemini model to use for translation.\nPerformance and cost may vary by model.",
+        "model_tooltip": "Select the AI model to use for translation.\nPerformance and cost may vary by model.",
         "temperature_label": "Temperature:",
         "temperature_tooltip": "Controls randomness in translation (0.0=deterministic, 1.0=creative)",
+        "test_connection_button": "Test Connection",
+        "test_connection_tooltip": "Test connection with current API settings",
 
         # 2.3. Folder Settings
         "folder_frame": "Folder Selection",
@@ -507,6 +569,23 @@ LANGUAGES = {
         "glossary_error_not_found": "File Not Found",
         "glossary_error_empty": "Empty File",
         "glossary_error_no_valid": "No Valid Entries",
+
+        # 2.6.1. Error Correction Panel
+        "error_correction_title": "Smart Error Correction & Quality Control",
+        "validation_level": "Validation Level:",
+        "validation_level_tooltip": "Control validation strictness vs speed:\n• Off: Fastest (no validation)\n• Basic: Key + YAML only\n• Standard: Full validation (recommended)\n• Strict: Maximum quality",
+        "auto_threshold": "Auto-Strict Threshold:",
+        "auto_fix_options": "Auto-Fix Options",
+        "fix_yaml_syntax": "Fix YAML syntax errors",
+        "preserve_paradox_format": "Preserve Paradox game format (keys, variables, tags)",
+        "remove_duplicates": "Remove duplicate entries",
+        "fix_incomplete_translations": "Fix incomplete translations",
+        "duplicate_strategy": "Duplicate Strategy:",
+        "duplicate_strategy_tooltip": "How to handle duplicate entries",
+        "quality_thresholds": "Quality Thresholds",
+        "min_length_ratio": "Min Length Ratio:",
+        "max_length_ratio": "Max Length Ratio:",
+        "correction_stats": "Real-time Statistics",
 
         # 2.7. Control Panel & Progress
         "translate_button": "Start Translation",
@@ -867,7 +946,12 @@ LANGUAGES = {
         # ======================================================================
         # 2. 主窗口界面 (Main Window UI)
         # ======================================================================
-        # 2.1. 界面设置 (UI Settings)
+        # 2.1. 选项卡标题 (Tab Titles)
+        "basic_settings_tab": "⚙️ 基本设置",
+        "advanced_settings_tab": "🔧 高级设置", 
+        "prompt_glossary_tab": "📝 提示词/术语表",
+        
+        # 2.2. 界面设置 (UI Settings)
         "ui_settings_frame_title": "界面设置",
         "ui_lang_label": "界面语言：",
         "ui_lang_tooltip": "更改程序界面的显示语言。",
@@ -879,12 +963,16 @@ LANGUAGES = {
 
         # 2.2. API 及模型设置 (API & Model Settings)
         "api_settings_frame": "API 及模型设置",
-        "api_key_label": "Gemini API 密钥：",
-        "api_key_tooltip": "请输入从 Google AI Studio 获取的 Gemini API 密钥。\n例如：AIzaSy...",
+        "api_provider_label": "API 提供商：",
+        "api_provider_tooltip": "选择AI API提供商 (Google Gemini, Anthropic Claude, OpenAI GPT)",
+        "api_key_label": "API 密钥：",
+        "api_key_tooltip": "输入所选提供商的密钥。\nGemini: 从Google AI Studio获取\nClaude: 从Anthropic Console获取\nOpenAI: 从OpenAI Platform获取",
         "model_label": "翻译模型：",
-        "model_tooltip": "选择用于翻译的 Gemini 模型。\n不同模型的性能和成本可能有所不同。",
+        "model_tooltip": "选择用于翻译的AI模型。\n不同模型的性能和成本可能有所不同。",
         "temperature_label": "温度:",
         "temperature_tooltip": "控制翻译的随机性（0.0=确定性，1.0=创造性）",
+        "test_connection_button": "测试连接",
+        "test_connection_tooltip": "使用当前API设置测试连接",
 
         # 2.3. 文件夹设置 (Folder Settings)
         "folder_frame": "文件夹选择",
@@ -952,6 +1040,23 @@ LANGUAGES = {
         "glossary_error_not_found": "文件未找到",
         "glossary_error_empty": "空文件",
         "glossary_error_no_valid": "无有效条目",
+
+        # 2.6.1. 错误校正面板 (Error Correction Panel)
+        "error_correction_title": "智能错误校正和质量控制",
+        "validation_level": "验证级别：",
+        "validation_level_tooltip": "控制验证严格性与速度：\n• Off: 最快速度（无验证）\n• Basic: 仅键名 + YAML验证\n• Standard: 完整验证（推荐）\n• Strict: 最高质量",
+        "auto_threshold": "自动严格模式阈值：",
+        "auto_fix_options": "自动修复选项",
+        "fix_yaml_syntax": "修复YAML语法错误",
+        "preserve_paradox_format": "保留Paradox游戏格式（键名、变量、标签）",
+        "remove_duplicates": "删除重复条目",
+        "fix_incomplete_translations": "修复不完整的翻译",
+        "duplicate_strategy": "重复处理策略：",
+        "duplicate_strategy_tooltip": "如何处理重复条目",
+        "quality_thresholds": "质量阈值",
+        "min_length_ratio": "最小长度比例：",
+        "max_length_ratio": "最大长度比例：",
+        "correction_stats": "实时统计",
 
         # 2.7. 控制面板与进度 (Control Panel & Progress)
         "translate_button": "开始翻译",

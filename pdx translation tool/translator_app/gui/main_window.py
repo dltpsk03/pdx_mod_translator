@@ -13,6 +13,7 @@ from datetime import datetime
 from ..utils.localization import LANGUAGES, set_language
 from ..core.translator_engine import TranslatorEngine
 from ..core.settings_manager import SettingsManager
+from ..core.api_providers import APIProviderFactory
 
 from .panels.ui_config_panel import UIConfigPanel
 from .panels.api_model_panel import APIModelPanel
@@ -22,6 +23,7 @@ from .panels.detailed_settings_panel import DetailedSettingsPanel
 from .panels.prompt_glossary_panel import PromptGlossaryPanel
 from .panels.control_panel import ControlPanel
 from .panels.log_panel import LogPanel
+from .panels.error_correction_panel import ErrorCorrectionPanel
 
 from .windows.translation_dashboard import TranslationDashboard
 from .windows.term_consistency_checker import TermConsistencyChecker
@@ -54,6 +56,7 @@ class TranslationGUI(ctk.CTk):
         self.texts = {} # update_ui_texts에서 채워짐
 
         self.appearance_mode_var = tk.StringVar(value="Dark")
+        self.api_provider_var = tk.StringVar(value="gemini")  # New API provider variable
         self.api_key_var = tk.StringVar()
         self.input_folder_var = tk.StringVar()
         self.output_folder_var = tk.StringVar()
@@ -64,7 +67,6 @@ class TranslationGUI(ctk.CTk):
         self.max_workers_var = tk.IntVar(value=100)
         self.max_tokens_var = tk.IntVar(value=65536)
         self.delay_between_batches_var = tk.DoubleVar(value=0.8)
-        self.temperature_var = tk.DoubleVar(value=0.5)
         self.keep_lang_def_unchanged_var = tk.BooleanVar(value=False)
         self.check_internal_lang_var = tk.BooleanVar(value=False)
         self.split_threshold_var = tk.IntVar(value=1000)
@@ -88,7 +90,7 @@ class TranslationGUI(ctk.CTk):
         self.consistency_window = None  # 일관성 검사기 창 참조
 
         self.api_lang_options_en = ('English', 'Korean', 'Simplified Chinese', 'French', 'German', 'Spanish', 'Japanese', 'Portuguese', 'Russian', 'Turkish')
-        self.available_models = ['gemini-2.5-flash-preview-05-20', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash','gemini-2.5-pro-preview-06-05']
+        self.available_models = ['gemini-2.5-pro', 'gemini-2.5-flash', 'gemini-2.5-flash-lite', 'gemini-2.0-flash', 'gemini-1.5-pro', 'gemini-1.5-flash']
         if self.available_models:
             self.model_name_var.set(self.available_models[0])
 
@@ -125,20 +127,30 @@ Text to translate:
         set_language(current_code)
 
         self.protocol("WM_DELETE_WINDOW", self._on_closing)
-        self.title(self.texts.get("title", "Paradox Mod Translator"))
-        self.geometry("1920x1080")
+        # 프리미엄 타이틀과 아이콘
+        title_text = "🚀 " + self.texts.get("title", "Paradox Mod Translator") + " - Professional Edition"
+        self.title(title_text)
+        
+        # 16:9 비율 최적화 - 더 실용적인 크기
+        self.geometry("1600x900")  # 16:9 비율 유지
+        self.minsize(1280, 720)    # 최소 HD 해상도
         self.resizable(True, True)
+        
+        # 프리미엄 배경 색상 설정
+        self.configure(fg_color=("#F8FAFC", "#0F172A"))
         
         # 키보드 단축키 설정
         self.setup_shortcuts()
 
-        # --- 4. TranslatorEngine 초기화 (콜백으로 전달할 메서드들이 self에 바인딩 된 후) ---
+        # --- 4. Enhanced TranslatorEngine 초기화 (콜백으로 전달할 메서드들이 self에 바인딩 된 후) ---
         self.translator_engine = TranslatorEngine(
             log_callback=self.log_message,
             progress_callback=self._update_progress_ui,
             status_callback=self._update_status_ui,
             stop_event=self.stop_event,
-            get_input_folder_callback=self.input_folder_var.get
+            get_input_folder_callback=self.input_folder_var.get,
+            error_correction_settings=getattr(self, 'error_correction_settings', None),
+            performance_settings=getattr(self, 'performance_settings', None)
         )
 
         # --- 5. UI 위젯 생성 및 최종 초기화 ---
@@ -148,6 +160,9 @@ Text to translate:
         if self.loaded_prompt_from_config:
             # 지연 호출을 통해 UI가 완전히 렌더링된 후 프롬프트 설정
             self.after(100, lambda: self.prompt_glossary_panel.set_prompt_text(self.loaded_prompt_from_config))
+
+        # Configure API provider after UI is created
+        self.after(200, self.update_api_provider)
 
         self._update_glossary_list_ui_data()
         self._update_status_ui("status_waiting", task_type="system")
@@ -233,6 +248,7 @@ Text to translate:
         app_vars_for_settings = {
             "ui_lang_var": self.current_lang_code,
             "appearance_mode_var": self.appearance_mode_var,
+            "api_provider_var": self.api_provider_var,  # New API provider variable
             "api_key_var": self.api_key_var,
             "input_folder_var": self.input_folder_var,
             "output_folder_var": self.output_folder_var,
@@ -244,7 +260,6 @@ Text to translate:
             "max_tokens_var": self.max_tokens_var,
             "delay_between_batches_var": self.delay_between_batches_var,
             "keep_identifier_var": self.keep_lang_def_unchanged_var,
-            "temperature_var": self.temperature_var,
             "check_internal_lang_var": self.check_internal_lang_var,
             "split_threshold_var": self.split_threshold_var,
             "skip_already_translated_var": self.skip_already_translated_var,
@@ -252,8 +267,12 @@ Text to translate:
             "selected_game_var": self.selected_game_var,
             "enable_live_preview_var": self.enable_live_preview,
         }
-        loaded_prompt, loaded_glossary_paths = self.settings_manager.load_settings(app_vars_for_settings)
+        loaded_prompt, loaded_glossary_paths, error_correction_settings, performance_settings = self.settings_manager.load_settings(app_vars_for_settings)
         self.loaded_prompt_from_config = loaded_prompt
+        
+        # Store the new settings
+        self.error_correction_settings = error_correction_settings
+        self.performance_settings = performance_settings
         self.glossary_files = []
         for g_path in loaded_glossary_paths:
             if os.path.exists(g_path):
@@ -263,6 +282,7 @@ Text to translate:
         app_vars_for_settings = {
             "ui_lang_var": self.current_lang_code,
             "appearance_mode_var": self.appearance_mode_var,
+            "api_provider_var": self.api_provider_var,  # New API provider variable
             "api_key_var": self.api_key_var,
             "input_folder_var": self.input_folder_var,
             "output_folder_var": self.output_folder_var,
@@ -274,7 +294,6 @@ Text to translate:
             "max_tokens_var": self.max_tokens_var,
             "delay_between_batches_var": self.delay_between_batches_var,
             "keep_identifier_var": self.keep_lang_def_unchanged_var,
-            "temperature_var": self.temperature_var,
             "check_internal_lang_var": self.check_internal_lang_var,
             "split_threshold_var": self.split_threshold_var,
             "skip_already_translated_var": self.skip_already_translated_var,
@@ -285,69 +304,160 @@ Text to translate:
         current_prompt_text = self.prompt_glossary_panel.get_prompt_text() if hasattr(self, 'prompt_glossary_panel') else self.default_prompt_template_str
         current_glossary_paths = [g["path"] for g in self.glossary_files]
         current_appearance_theme = ctk.get_appearance_mode()
+        
+        # Get current error correction settings
+        error_correction_settings = None
+        if hasattr(self, 'error_correction_panel'):
+            error_correction_settings = self.error_correction_panel.get_error_correction_settings()
+        
+        # Get current performance settings (could be modified by user in future)
+        performance_settings = getattr(self, 'performance_settings', None)
+        
         self.settings_manager.save_settings(
-            app_vars_for_settings, current_prompt_text, current_glossary_paths, current_appearance_theme
+            app_vars_for_settings, current_prompt_text, current_glossary_paths, current_appearance_theme,
+            error_correction_settings, performance_settings
         )
         self.log_message("settings_saved_log")
+    
+    def update_api_provider(self):
+        """Update the translator engine with current API provider settings"""
+        try:
+            provider_type = self.api_provider_var.get()
+            api_key = self.api_key_var.get()
+            model = self.model_name_var.get()
+            
+            if provider_type and api_key and model:
+                # Configure the API provider in the translator engine
+                success = self.translator_engine.set_api_provider(
+                    provider_type, api_key, model
+                )
+                
+                if success:
+                    self.log_message(f"API Provider updated: {provider_type} ({model})")
+                    return True
+                else:
+                    self.log_message(f"Failed to update API provider: {provider_type}")
+                    return False
+            else:
+                self.log_message("API provider settings incomplete")
+                return False
+                
+        except Exception as e:
+            self.log_message(f"Error updating API provider: {e}")
+            return False
 
     # main_window.py의 create_widgets 메서드
 
     def create_widgets(self):
         """위젯 생성 및 초기 레이아웃 설정"""
-        # 메인 그리드 설정
-        self.grid_rowconfigure(0, weight=6)  # 상단 설정 영역
-        self.grid_rowconfigure(1, weight=0)  # 컨트롤 패널
-        self.grid_rowconfigure(2, weight=2)  # 로그 패널
+        # 메인 그리드 설정 - 16:9 비율 최적화
+        self.grid_rowconfigure(0, weight=5)  # 상단 설정 영역 - 16:9에 맞춰 조정
+        self.grid_rowconfigure(1, weight=0)  # 컨트롤 패널 - 고정 높이
+        self.grid_rowconfigure(2, weight=2)  # 로그 패널 - 적절한 크기 확보
         self.grid_columnconfigure(0, weight=1)
 
-        # === 상단 메인 설정 영역 ===
-        # top_main_frame을 인스턴스 속성(self)으로 만들어 다른 메서드에서 접근 가능하게 함
-        self.top_main_frame = ctk.CTkFrame(self, corner_radius=15, fg_color="transparent")
-        self.top_main_frame.grid(row=0, column=0, padx=15, pady=(15, 10), sticky="nsew")
+        # === 상단 메인 영역 - 프리미엄 탭 기반 UI ===
+        self.top_main_frame = ctk.CTkFrame(self, corner_radius=20, fg_color="transparent")
+        self.top_main_frame.grid(row=0, column=0, padx=20, pady=(20, 12), sticky="nsew")
         self.top_main_frame.grid_rowconfigure(0, weight=1)
+        self.top_main_frame.grid_columnconfigure(0, weight=1)
 
-        # 좌측: 설정 패널들
-        self.settings_scroll_frame = ctk.CTkScrollableFrame(self.top_main_frame, corner_radius=12)
-        self.settings_scroll_frame.grid(row=0, column=0, padx=(0, 8), pady=0, sticky="nsew")
-        self.settings_scroll_frame.grid_columnconfigure(0, weight=1)
+        # 고급스러운 탭뷰 생성 - 더 큰 corner_radius와 시각적 개선
+        self.tabview = ctk.CTkTabview(
+            self.top_main_frame, 
+            corner_radius=16,
+            border_width=2,
+            segmented_button_fg_color=("#E1E5E9", "#212529"),
+            segmented_button_selected_color=("#3B82F6", "#1E40AF"),
+            segmented_button_selected_hover_color=("#2563EB", "#1D4ED8"),
+            text_color=("#1F2937", "#F3F4F6"),
+            text_color_disabled=("#9CA3AF", "#6B7280")
+        )
+        self.tabview.grid(row=0, column=0, padx=0, pady=0, sticky="nsew")
         
-        # 설정 패널들 추가
-        current_row = 0
-        self.ui_config_panel = UIConfigPanel(self.settings_scroll_frame, main_app=self)
-        self.ui_config_panel.grid(row=current_row, column=0, padx=0, pady=(0, 8), sticky="ew"); current_row += 1
+        # 탭 생성 - 아이콘 포함 프리미엄 디자인
+        self.basic_tab_name = "⚙️ 기본 설정"
+        self.advanced_tab_name = "🔧 고급 설정"
+        self.prompt_tab_name = "📝 프롬프트/용어집"
         
-        self.api_model_panel = APIModelPanel(self.settings_scroll_frame, main_app=self)
-        self.api_model_panel.grid(row=current_row, column=0, padx=0, pady=8, sticky="ew"); current_row += 1
+        self.tabview.add(self.basic_tab_name)
+        self.tabview.add(self.advanced_tab_name) 
+        self.tabview.add(self.prompt_tab_name)
         
-        self.folder_panel = FolderPanel(self.settings_scroll_frame, main_app=self)
-        self.folder_panel.grid(row=current_row, column=0, padx=0, pady=8, sticky="ew"); current_row += 1
+        # === 기본 설정 탭 ===
+        basic_tab = self.tabview.tab(self.basic_tab_name)
+        basic_tab.grid_columnconfigure(0, weight=1)
+        basic_tab.grid_columnconfigure(1, weight=1)
+        basic_tab.grid_rowconfigure(0, weight=0)  # UI 설정: 고정 크기
+        basic_tab.grid_rowconfigure(1, weight=1)  # API/언어: 확장 가능
+        basic_tab.grid_rowconfigure(2, weight=0)  # 폴더: 고정 크기
         
-        self.translation_lang_panel = TranslationLangPanel(self.settings_scroll_frame, main_app=self)
-        self.translation_lang_panel.grid(row=current_row, column=0, padx=0, pady=8, sticky="ew"); current_row += 1
+        # UI 설정 - 컴팩트하게
+        self.ui_config_panel = UIConfigPanel(basic_tab, main_app=self)
+        self.ui_config_panel.grid(row=0, column=0, columnspan=2, padx=10, pady=(10, 5), sticky="ew")
         
-        self.detailed_settings_panel = DetailedSettingsPanel(self.settings_scroll_frame, main_app=self)
-        self.detailed_settings_panel.grid(row=current_row, column=0, padx=0, pady=8, sticky="ew"); current_row += 1
+        # API 및 언어 설정을 나란히 배치 - 16:9 비율 활용
+        self.api_model_panel = APIModelPanel(basic_tab, main_app=self)
+        self.api_model_panel.grid(row=1, column=0, padx=(10, 5), pady=5, sticky="nsew")
+        
+        self.translation_lang_panel = TranslationLangPanel(basic_tab, main_app=self)
+        self.translation_lang_panel.grid(row=1, column=1, padx=(5, 10), pady=5, sticky="nsew")
+        
+        # 폴더 설정 - 컴팩트하게
+        self.folder_panel = FolderPanel(basic_tab, main_app=self)
+        self.folder_panel.grid(row=2, column=0, columnspan=2, padx=10, pady=(5, 10), sticky="ew")
 
-        # 중앙: 프롬프트 및 용어집 패널
-        self.prompt_glossary_panel = PromptGlossaryPanel(self.top_main_frame, main_app=self)
-        self.prompt_glossary_panel.grid(row=0, column=1, padx=(8, 0), pady=0, sticky="nsew")
+        # === 고급 설정 탭 ===
+        advanced_tab = self.tabview.tab(self.advanced_tab_name)
+        advanced_tab.grid_columnconfigure(0, weight=1)
+        advanced_tab.grid_rowconfigure(0, weight=1)
         
-        # 우측: LivePreviewPanel은 항상 생성하고, 초기에는 숨겨둠
+        # 고급 설정용 스크롤 가능한 프레임 추가
+        advanced_scroll_frame = ctk.CTkScrollableFrame(advanced_tab, corner_radius=8)
+        advanced_scroll_frame.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        advanced_scroll_frame.grid_columnconfigure(0, weight=1)
+        
+        self.detailed_settings_panel = DetailedSettingsPanel(advanced_scroll_frame, main_app=self)
+        self.detailed_settings_panel.grid(row=0, column=0, padx=5, pady=(5, 5), sticky="ew")
+        
+        self.error_correction_panel = ErrorCorrectionPanel(advanced_scroll_frame, main_app=self)
+        self.error_correction_panel.grid(row=1, column=0, padx=5, pady=(5, 5), sticky="ew")
+        
+        # Set initial error correction settings if available
+        if hasattr(self, 'error_correction_settings'):
+            self.error_correction_panel.set_error_correction_settings(self.error_correction_settings)
+
+        # === 프롬프트/용어집 탭 ===
+        prompt_tab = self.tabview.tab(self.prompt_tab_name)
+        prompt_tab.grid_columnconfigure(0, weight=1)
+        prompt_tab.grid_rowconfigure(0, weight=1)
+        
+        # 프롬프트/용어집 패널은 이미 내장 스크롤이 있으므로 직접 배치
+        self.prompt_glossary_panel = PromptGlossaryPanel(prompt_tab, main_app=self)
+        self.prompt_glossary_panel.grid(row=0, column=0, padx=5, pady=5, sticky="nsew")
+        
+        # 우측: LivePreviewPanel - 별도 창으로 분리될 수 있도록 유지
         self.live_preview_panel = LivePreviewPanel(self.top_main_frame, main_app=self)
-        self.live_preview_panel.grid(row=0, column=2, padx=(8, 0), pady=0, sticky="nsew")
+        self.live_preview_panel.grid(row=0, column=1, padx=(8, 0), pady=0, sticky="nsew")
         self.live_preview_panel.grid_remove() # 시작 시 화면에서 숨김
 
-        # === 컨트롤 패널 ===
-        self.control_panel_container = ctk.CTkFrame(self, corner_radius=12)
-        self.control_panel_container.grid(row=1, column=0, padx=15, pady=8, sticky="ew")
+        # === 프리미엄 컨트롤 패널 ===
+        self.control_panel_container = ctk.CTkFrame(
+            self, 
+            corner_radius=16,
+            border_width=1,
+            border_color=("#D1D5DB", "#374151"),
+            fg_color=("#F9FAFB", "#1F2937")
+        )
+        self.control_panel_container.grid(row=1, column=0, padx=20, pady=12, sticky="ew")
         self.control_panel_container.grid_columnconfigure(0, weight=1)
         
         self.control_panel = ControlPanel(self.control_panel_container, main_app=self)
-        self.control_panel.grid(row=0, column=0, padx=10, pady=10, sticky="ew")
+        self.control_panel.grid(row=0, column=0, padx=15, pady=12, sticky="ew")
 
-        # === 로그 패널 ===
+        # === 고급스러운 로그 패널 ===
         self.log_panel = LogPanel(self, main_app=self)
-        self.log_panel.grid(row=2, column=0, padx=15, pady=(8, 15), sticky="nsew")
+        self.log_panel.grid(row=2, column=0, padx=20, pady=(12, 20), sticky="nsew")
         
         # 초기 레이아웃 상태를 현재 설정값에 맞게 조정
         self.toggle_live_preview(initial_load=True)
@@ -357,13 +467,37 @@ Text to translate:
         self.texts = LANGUAGES.get(current_code, LANGUAGES["ko"])
         # 전역 언어 설정도 업데이트 (대시보드 등에서 get_text() 사용을 위해)
         set_language(current_code)
-        self.title(self.texts.get("title"))
+        # 프리미엄 타이틀 업데이트
+        title_text = "🚀 " + self.texts.get("title") + " - Professional Edition"
+        self.title(title_text)
+        
+        # 탭 제목 업데이트
+        if hasattr(self, 'tabview'):
+            # 현재 선택된 탭 저장
+            current_tab = self.tabview.get()
+            
+            # 탭 제목 업데이트를 위한 새로운 탭뷰 생성 방식
+            new_basic_name = self.texts.get("basic_settings_tab", "기본 설정")
+            new_advanced_name = self.texts.get("advanced_settings_tab", "고급 설정")
+            new_prompt_name = self.texts.get("prompt_glossary_tab", "프롬프트/용어집")
+            
+            # 탭 이름 매핑으로 현재 탭 유지
+            tab_mapping = {
+                self.basic_tab_name: new_basic_name,
+                self.advanced_tab_name: new_advanced_name, 
+                self.prompt_tab_name: new_prompt_name
+            }
+            
+            self.basic_tab_name = new_basic_name
+            self.advanced_tab_name = new_advanced_name
+            self.prompt_tab_name = new_prompt_name
 
         if hasattr(self, 'ui_config_panel'): self.ui_config_panel.update_language()
         if hasattr(self, 'api_model_panel'): self.api_model_panel.update_language()
         if hasattr(self, 'folder_panel'): self.folder_panel.update_language()
         if hasattr(self, 'translation_lang_panel'): self.translation_lang_panel.update_language()
         if hasattr(self, 'detailed_settings_panel'): self.detailed_settings_panel.update_language()
+        if hasattr(self, 'error_correction_panel'): self.error_correction_panel.update_language()
         if hasattr(self, 'prompt_glossary_panel'): self.prompt_glossary_panel.update_language()
         if hasattr(self, 'control_panel'): self.control_panel.update_language()
         if hasattr(self, 'log_panel'): self.log_panel.update_language()
@@ -679,7 +813,6 @@ Text to translate:
             batch_size_val=self.batch_size_var.get(),
             max_tokens_val=self.max_tokens_var.get(),
             delay_val=self.delay_between_batches_var.get(),
-            temperature_val=self.temperature_var.get(),
             max_workers_val=self.max_workers_var.get(),
             keep_identifier_val=self.keep_lang_def_unchanged_var.get(),
             check_internal_lang_val=self.check_internal_lang_var.get(),
@@ -729,8 +862,6 @@ Text to translate:
             messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('batch_delay_label')[:-1]})"); return False
         if not is_valid_int(self.split_threshold_var, 0, 200000): # 0은 분할 안함
             messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('split_threshold_label')[:-1]})"); return False
-        if not is_valid_float(self.temperature_var, 0.0, 2.0):
-            messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('temperature_label')[:-1]})"); return False
         if not is_valid_int(self.max_retries_var, 1, 10):
             messagebox.showerror(self.texts.get("error_title"), self.texts.get("error_numeric_setting_invalid") + f" ({self.texts.get('max_retries_label')[:-1]})"); return False
 

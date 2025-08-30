@@ -1,12 +1,13 @@
 # translator_project/translator_app/core/settings_manager.py
 import json
 import os
-from .config import CONFIG_FILE
+from .config import CONFIG_FILE, DEFAULT_API_PROVIDERS, DEFAULT_ERROR_CORRECTION, DEFAULT_PERFORMANCE
 
 class SettingsManager:
     def __init__(self, default_prompt_template, default_available_models):
         self.default_prompt_template = default_prompt_template
         self.default_model = default_available_models[0] if default_available_models else ""
+        self.default_api_provider = "gemini"
 
     def load_settings(self, app_vars):
         """
@@ -23,6 +24,9 @@ class SettingsManager:
 
                 app_vars["ui_lang_var"].set(config.get("ui_language", "ko"))
                 app_vars["appearance_mode_var"].set(config.get("appearance_mode", "Dark"))
+                
+                # API provider settings
+                app_vars["api_provider_var"].set(config.get("api_provider", self.default_api_provider))
                 app_vars["api_key_var"].set(config.get("api_key", ""))
                 app_vars["input_folder_var"].set(config.get("input_folder", ""))
                 app_vars["output_folder_var"].set(config.get("output_folder", ""))
@@ -31,7 +35,6 @@ class SettingsManager:
                 app_vars["target_lang_api_var"].set(config.get("target_lang_api", "Korean"))
                 app_vars["batch_size_var"].set(config.get("batch_size", 50))
                 app_vars["max_workers_var"].set(config.get("max_workers", 100))
-                app_vars["temperature_var"].set(config.get("temperature", 0.5))
                 app_vars["max_tokens_var"].set(config.get("max_tokens", 65536))
                 app_vars["delay_between_batches_var"].set(config.get("delay_between_batches", 0.8))
                 app_vars["keep_identifier_var"].set(config.get("keep_identifier", False))
@@ -49,18 +52,40 @@ class SettingsManager:
 
         except Exception as e:
             print(f"설정 로드 오류: {e}") # GUI log_message 대신 print 사용
-        return loaded_prompt, loaded_glossaries_paths
+        
+        # Load error correction settings if available
+        error_correction_settings = None
+        performance_settings = None
+        
+        try:
+            if os.path.exists(CONFIG_FILE):
+                with open(CONFIG_FILE, 'r', encoding='utf-8') as f:
+                    config = json.load(f)
+                
+                error_correction_settings = config.get("error_correction", DEFAULT_ERROR_CORRECTION)
+                performance_settings = config.get("performance", DEFAULT_PERFORMANCE)
+        except Exception as e:
+            error_correction_settings = DEFAULT_ERROR_CORRECTION
+            performance_settings = DEFAULT_PERFORMANCE
+            
+        return loaded_prompt, loaded_glossaries_paths, error_correction_settings, performance_settings
 
-    def save_settings(self, app_vars, current_prompt, glossary_file_paths, current_appearance_mode):
+    def save_settings(self, app_vars, current_prompt, glossary_file_paths, current_appearance_mode, 
+                     error_correction_settings=None, performance_settings=None):
         """
         app_vars: UI의 StringVar/IntVar 등을 담은 딕셔너리
         current_prompt: 현재 프롬프트 텍스트
         glossary_file_paths: 현재 용어집 파일 경로 리스트
         current_appearance_mode: 현재 테마 모드 (ctk.get_appearance_mode() 값)
+        error_correction_settings: 오류 수정 설정
+        performance_settings: 성능 설정
         """
         config = {
             "ui_language": app_vars["ui_lang_var"].get(),
             "appearance_mode": current_appearance_mode,
+            
+            # API settings
+            "api_provider": app_vars["api_provider_var"].get(),
             "api_key": app_vars["api_key_var"].get(),
             "input_folder": app_vars["input_folder_var"].get(),
             "output_folder": app_vars["output_folder_var"].get(),
@@ -69,7 +94,6 @@ class SettingsManager:
             "target_lang_api": app_vars["target_lang_api_var"].get(),
             "batch_size": app_vars["batch_size_var"].get(),
             "max_workers": app_vars["max_workers_var"].get(),
-            "temperature": app_vars["temperature_var"].get(),
             "max_tokens": app_vars["max_tokens_var"].get(),
             "delay_between_batches": app_vars["delay_between_batches_var"].get(),
             "keep_identifier": app_vars["keep_identifier_var"].get(),
@@ -79,7 +103,11 @@ class SettingsManager:
             "max_retries": app_vars["max_retries_var"].get(),
             "selected_game": app_vars["selected_game_var"].get(),
             "custom_prompt": current_prompt,
-            "glossaries": glossary_file_paths
+            "glossaries": glossary_file_paths,
+            
+            # New feature settings
+            "error_correction": error_correction_settings or DEFAULT_ERROR_CORRECTION,
+            "performance": performance_settings or DEFAULT_PERFORMANCE
         }
         try:
             with open(CONFIG_FILE, 'w', encoding='utf-8') as f:

@@ -1,0 +1,13 @@
+{
+  "schema_version": "2.0",
+  "file_path": "F:/import\\english\\cultures_l_english.yml",
+  "completed_lines": 301,
+  "total_lines": 328,
+  "timestamp": 1756450275.4438348,
+  "api_provider": "GeminiProvider",
+  "error_stats": {
+    "errors_detected": 0,
+    "errors_corrected": 0
+  },
+  "performance_stats": {}
+}

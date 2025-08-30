@@ -1,0 +1,50 @@
+{
+    "ui_language": "ko",
+    "appearance_mode": "Dark",
+    "api_provider": "gemini",
+    "api_key": "AIzaSyAXySUSBAh_LVoL3mQCWUbPicNBhbu-SOg",
+    "input_folder": "F:/import",
+    "output_folder": "F:/output",
+    "model_name": "gemini-2.5-flash",
+    "source_lang_api": "English",
+    "target_lang_api": "Korean",
+    "batch_size": 50,
+    "max_workers": 100,
+    "max_tokens": 65536,
+    "delay_between_batches": 0.8,
+    "keep_identifier": false,
+    "check_internal_lang": false,
+    "split_threshold": 1000,
+    "skip_already_translated": false,
+    "max_retries": 3,
+    "selected_game": "Victoria 3",
+    "custom_prompt": "Please translate the following YML formatted text from '{source_lang_for_prompt}' to '{target_lang_for_prompt}'.\n{glossary_section}\nYou MUST adhere to the following rules strictly:\n1. Only translate the text enclosed in double quotes after a colon (:). (e.g., `key: \"text to translate\"`)\n2. Do NOT translate code-like strings, variable names (e.g., `$variable$`, `[variable]`, `<variable>`), special tags (e.g., `§Y`, `£gold£`), file paths, or URLs.\n3. **CRITICAL**: You MUST preserve all original newline characters (\\n) and leading whitespace (indentation) for each line. Do NOT change or remove them. Each translated line must retain its original line break.\n4. Provide ONLY the translated text. Do NOT include any other explanations, headers, or footers.\n5. Translate all personal names and proper nouns according to the context.\n6. If the content within quotes is a number, consists only of special characters, or is a simple path string, do NOT translate it.\n7. Do NOT translate YML comments (lines starting with '#'). Keep them as they are.\n8. For each input line, you MUST output exactly one translated line.\n9. **ABSOLUTE REQUIREMENT**: When translating from {source_lang_for_prompt} to {target_lang_for_prompt}, you MUST completely translate ALL {source_lang_for_prompt} words and phrases. Do NOT leave any {source_lang_for_prompt} text untranslated. Every single {source_lang_for_prompt} word must be converted to {target_lang_for_prompt}.\n10. **STRICT VALIDATION**: If any {source_lang_for_prompt} words remain in your translation, it is considered a FAILED translation. Retry until ALL {source_lang_for_prompt} is properly translated to {target_lang_for_prompt}.\n\nText to translate:\n```yaml\n{batch_text}\n```",
+    "glossaries": [],
+    "error_correction": {
+        "validation_level": "standard",
+        "auto_activation_threshold": 0.2,
+        "auto_fix": {
+            "yaml_syntax": true,
+            "preserve_format": true,
+            "remove_duplicates": true,
+            "fix_incomplete": false
+        },
+        "duplicate_strategy": "keep_first",
+        "quality_thresholds": {
+            "min_length_ratio": 0.3,
+            "max_length_ratio": 3.0
+        },
+        "performance_optimization": {
+            "enable_fast_mode": false,
+            "dynamic_batch_sizing": true,
+            "adaptive_concurrency": true
+        }
+    },
+    "performance": {
+        "enable_caching": true,
+        "cache_cleanup_days": 30,
+        "max_concurrent_requests": 5,
+        "adaptive_batching": true,
+        "async_processing": true
+    }
+}

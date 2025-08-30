@@ -44,55 +44,67 @@ class ControlPanel(ctk.CTkFrame):
         button_frame.grid_columnconfigure(3, weight=0)  # 도구 버튼
         button_frame.grid_columnconfigure(4, weight=0)  # 새로고침 버튼
         
-        # 1. 시작 버튼 (아이콘 포함)
+        # 1. 프리미엄 시작 버튼
         self.start_button = ctk.CTkButton(
             button_frame,
-            text="▶ " + get_text("translate_button", "Start Translation"),
+            text="🚀 " + get_text("translate_button", "Start Translation"),
             command=self.start_translation_clicked,
-            width=140,
-            height=36,
+            width=160,
+            height=40,
+            corner_radius=14,
             font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color="#2E7D32",
-            hover_color="#388E3C"
+            fg_color=("#10B981", "#059669"),
+            hover_color=("#059669", "#047857"),
+            border_width=0
         )
         self.start_button.grid(row=0, column=0, padx=(0, 5), sticky="w")
         
-        # 2. 중지 버튼 (아이콘 포함)
+        # 2. 프리미엄 중지 버튼
         self.stop_button = ctk.CTkButton(
             button_frame,
-            text="⏹ " + get_text("stop_button", "Stop"),
+            text="⏹️ " + get_text("stop_button", "Stop"),
             command=self.stop_translation_clicked,
-            width=100,
-            height=36,
+            width=120,
+            height=40,
+            corner_radius=14,
             font=ctk.CTkFont(size=14, weight="bold"),
-            fg_color="#D32F2F",
-            hover_color="#E53935",
+            fg_color=("#EF4444", "#DC2626"),
+            hover_color=("#DC2626", "#B91C1C"),
+            border_width=0,
             state="disabled"
         )
         self.stop_button.grid(row=0, column=1, padx=5, sticky="w")
         
-        # 3. 도구 메뉴 버튼
+        # 3. 프리미엄 도구 메뉴 버튼
         self.tools_menu_button = ctk.CTkButton(
             button_frame,
-            text="🛠 " + get_text("tools_menu", "Tools"),
+            text="🛠️ " + get_text("tools_menu", "Tools"),
             command=self.main_app.show_tools_menu,
-            width=100,
-            height=36,
-            font=ctk.CTkFont(size=14)
+            width=120,
+            height=40,
+            corner_radius=14,
+            font=ctk.CTkFont(size=13, weight="normal"),
+            fg_color=("#6366F1", "#4F46E5"),
+            hover_color=("#4F46E5", "#4338CA"),
+            border_width=0
         )
         self.tools_menu_button.grid(row=0, column=3, padx=5, sticky="e")
         
         # main_app에 참조 저장
         self.main_app.tools_menu_button = self.tools_menu_button
         
-        # 4. 새로고침 버튼
+        # 4. 프리미엄 새로고침 버튼
         self.refresh_button = ctk.CTkButton(
             button_frame,
             text="🔄",
-            width=36,
-            height=36,
+            width=45,
+            height=40,
+            corner_radius=14,
             command=self.refresh_ui,
-            font=ctk.CTkFont(size=16)
+            font=ctk.CTkFont(size=16),
+            fg_color=("#8B5CF6", "#7C3AED"),
+            hover_color=("#7C3AED", "#6D28D9"),
+            border_width=0
         )
         self.refresh_button.grid(row=0, column=4, padx=(5, 0), sticky="e")
         
@@ -144,14 +156,17 @@ class ControlPanel(ctk.CTkFrame):
         progress_container = ctk.CTkFrame(self, fg_color="transparent")
         progress_container.grid(row=2, column=0, sticky="ew", pady=(2, 0))
         
-        # 진행률 바
+        # 프리미엄 진행률 바
         self.progress_bar = ctk.CTkProgressBar(
             progress_container,
-            height=20,
-            corner_radius=10,
-            progress_color=("#2E7D32", "#66BB6A")
+            height=24,
+            corner_radius=12,
+            progress_color=("#10B981", "#34D399"),
+            fg_color=("#E5E7EB", "#374151"),
+            border_width=1,
+            border_color=("#D1D5DB", "#4B5563")
         )
-        self.progress_bar.pack(fill="x", padx=5)
+        self.progress_bar.pack(fill="x", padx=8)
         self.progress_bar.set(0)
         
     def _get_file_counter_text(self):
